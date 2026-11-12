@@ -10,7 +10,7 @@ UFTI only needs the PC and the iPhone to share a network. A router is one way to
 
 The transfer itself is identical in every mode. Traffic goes straight between the two devices and uses **no mobile data and no internet**.
 
-<p align="center"><img src="screenshot-no-wifi.jpg" alt="UFTI No Wi-Fi mode with PC hotspot QR codes" width="320"></p>
+<p align="center"><img src="screenshot-no-wifi.png" alt="UFTI No Wi-Fi mode with PC hotspot QR codes" width="320"></p>
 
 ## Option A: PC hotspot (the PC creates the Wi-Fi, works with iPhone and Android)
 1. In UFTI, open the **Connect** card and choose **No Wi-Fi**, then **PC hotspot**.
