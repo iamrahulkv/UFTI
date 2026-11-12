@@ -16,7 +16,7 @@ The transfer itself is identical in every mode. Traffic goes straight between th
 1. In UFTI, open the **Connect** card and choose **No Wi-Fi**, then **PC hotspot**.
 2. Press **Start PC hotspot**. Windows turns on its Mobile Hotspot.
 3. **Step 1:** scan the left QR code with the phone camera and tap **Join**. (iPhone Camera and Android Camera or Google Lens can both join a network from a QR code. Or pick the network named in the card and type the password.)
-4. **Step 2:** scan the right QR code. It opens UFTI in Safari.
+4. **Step 2:** scan the right QR code. It opens UFTI in the phone's browser.
 5. Send files. Press **Stop hotspot** when you're done.
 
 Notes:

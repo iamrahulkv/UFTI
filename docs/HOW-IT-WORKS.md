@@ -3,7 +3,7 @@
 ## Architecture
 
 ```
- iPhone (Safari)                          Windows PC
+ Phone (any browser)                      Windows PC
  ┌───────────────┐   HTTP + WebSocket   ┌───────────────────────────────┐
  │ public/       │ <------------------> │ server.js (Node http + ws)    │
  │ index.html    │      same Wi-Fi      │   - REST API                  │

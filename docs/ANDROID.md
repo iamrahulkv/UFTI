@@ -6,10 +6,10 @@ UFTI works with Android the same way it works with an iPhone: the PC runs the ap
 
 ## Quick start
 1. Open UFTI on the PC. The **Connect** card shows a QR code.
-2. On the Android phone, make sure it's on the **same Wi-Fi**, then scan the QR code with the **Camera** app or **Google Lens** and open the link in Chrome.
+2. On the Android phone, make sure it's on the **same Wi-Fi**, then scan the QR code with the **Camera** app or **Google Lens** and open the link in Chrome or your default browser.
 3. Send with **Tap or drop files to send** (it opens the Android file picker, camera and gallery) or the text box.
 4. Items from the PC show a **Save** button. Saved files go to your **Downloads** folder.
-5. *(Optional)* In Chrome, open the menu and choose **Add to Home screen** for an app-style icon.
+5. *(Optional)* In your browser's menu, choose **Add to Home screen** for an app-style icon.
 
 ## No Wi-Fi? Use a hotspot
 Same two options as on iPhone. See [no-Wi-Fi guide](NO-WIFI.md) for the full steps.
@@ -45,5 +45,5 @@ curl -F "file=@photo.jpg" "http://192.168.1.20:8787/api/upload?t=abc123&device=A
 
 ## Good to know
 - **Bluetooth, Wi-Fi Direct and Quick Share** aren't used. UFTI works over a normal Wi-Fi or hotspot link, which is also faster.
-- **Large files:** keep the phone screen on and Chrome in the foreground while uploading, or Android may pause the transfer.
+- **Large files:** keep the phone screen on and the browser in the foreground while uploading, or Android may pause the transfer.
 - **Photos and videos:** pick them through the file picker's **Photos** or **Gallery** option.

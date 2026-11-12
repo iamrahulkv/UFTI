@@ -1,6 +1,6 @@
 # Send from the iPhone Share button
 
-Safari web apps cannot add themselves to the iOS share sheet, but an iOS Shortcut can. With one, you can tap Share in Photos, Files, Safari and more, then choose **Send to PC**. It takes about two minutes and is free.
+Web pages cannot add themselves to the iOS share sheet, but an iOS Shortcut can. With one, you can tap Share in Photos, Files, Safari and more, then choose **Send to PC**. It takes about two minutes and is free.
 
 You need your phone link. Open UFTI on the PC and copy it (tray icon, then **Copy phone link**). It looks like `http://192.168.1.20:8787/?t=abc123`. Note two parts: the **IP** (`192.168.1.20`) and the **token** (`abc123`).
 

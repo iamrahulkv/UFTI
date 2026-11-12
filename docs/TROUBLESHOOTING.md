@@ -34,10 +34,10 @@ $env:PORT=9000; npm start
 ```
 
 ## iPhone download behaviour
-Tapping **Save** downloads through Safari's download manager. Find files in the **Files** app, under Downloads. To get a photo into the Photos app, open it from Downloads, tap Share, then **Save Image**.
+Tapping **Save** downloads through your browser's download manager (on iPhone Safari, or any other browser you use). Find files in the **Files** app, under Downloads. To get a photo into the Photos app, open it from Downloads, tap Share, then **Save Image**.
 
 ## Large files stall
-Keep the iPhone screen on and Safari in the foreground while uploading. iOS suspends background tabs and can pause the transfer.
+Keep the phone screen on and the browser in the foreground while uploading. iOS and Android suspend background tabs and can pause the transfer.
 
 ## Windows SmartScreen blocks the installer
 The installer is not code-signed yet. Click **More info**, then **Run anyway**.

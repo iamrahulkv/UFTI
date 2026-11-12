@@ -23,7 +23,7 @@ Send files, photos, videos and text between your Windows 11 PC and your **iPhone
 ## Why UFTI
 - **Private.** Data goes straight from device to device on your local network. No server in the cloud, no sign-up, no tracking.
 - **Works with or without Wi-Fi.** Use your home network, or switch to **No Wi-Fi** and let the PC (or the iPhone) create its own hotspot. See [no-Wi-Fi guide](docs/NO-WIFI.md).
-- **iPhone and Android.** The phone side is a web page, so it works in Safari, Chrome and any modern browser. See the [Android guide](docs/ANDROID.md).
+- **iPhone and Android.** The phone side is a web page, so it works in your phone's default browser, whether that's Safari, Chrome, Samsung Internet, Firefox or any other modern browser. See the [Android guide](docs/ANDROID.md).
 - **Scan and send.** Scan a QR code and it opens in the phone's browser. Add it to your Home Screen for an app icon.
 - **Both directions.** PC to iPhone and iPhone to PC.
 - **History on both sides.** See everything you sent and received in All / Sent / Received tabs, with times. Clear it any time.
@@ -64,23 +64,16 @@ npm run app      # desktop app
 
 ## Use
 1. Open UFTI on the PC. It shows a QR code.
-2. Make sure the phone is on the **same Wi-Fi**, then scan the QR code with the Camera app (or Google Lens on Android) and open the link in Safari or Chrome.
+2. Make sure the phone is on the **same Wi-Fi**, then scan the QR code with the Camera app (or Google Lens on Android) and open the link in the phone's browser.
 3. Tap **Tap or drop files to send** on either device, or type text and press **Send text**.
 4. Things you send appear on both devices instantly. Press **Save** to download, **Copy** for text.
 5. Use the **All / Sent / Received** tabs to review your history. **Clear history** removes what the current tab shows, from every device, and can optionally delete the saved files from the PC too.
 6. Tap the sun/moon button in the header to switch between light and dark.
-7. *(Optional)* In Safari, tap Share, then **Add to Home Screen**.
+7. *(Optional)* Add UFTI to the phone's Home Screen for an app-style icon (iPhone: Share, then **Add to Home Screen**; Android: browser menu, then **Add to Home screen**).
 
 On the PC, received files are saved to `%APPDATA%\ufti\received`. Use the tray icon menu, then **Open received folder**.
 
-The phone only needs the QR scan once. Safari remembers the pairing.
-
-## The name and the look
-**UFTI** stands for **Unified File Transfer Interface**. The name is inspired by India's UPI: one simple, unified way to move things between any two devices, no matter who made them. The tagline says the whole flow: *Scan and Send*.
-
-The interface uses a palette inspired by the look of India's digital payment apps: saffron orange, India green and deep navy blue. The official UFTI logo is a QR code in three corners (navy, saffron, green) with a forward arrow taking the fourth: scan, then send. Vector source: [`docs/logo.svg`](docs/logo.svg).
-
-> UFTI is an independent open-source project. It is **not affiliated with, endorsed by or sponsored by** NPCI, BHIM or UPI. Those names and logos belong to their owners, and UFTI does not use them.
+The phone only needs the QR scan once. The browser remembers the pairing.
 
 ## Docs
 - [How it works and API reference](docs/HOW-IT-WORKS.md)
@@ -96,7 +89,7 @@ The interface uses a palette inspired by the look of India's digital payment app
 
 **Does it need internet or a router?** No. Both devices only need to be on the same network, and the **No Wi-Fi** mode creates one for you with a PC or iPhone hotspot. See [docs/NO-WIFI.md](docs/NO-WIFI.md).
 
-**Does it work with Android?** Yes. Scan the QR code with the Camera app or Google Lens and open the link in Chrome. See [docs/ANDROID.md](docs/ANDROID.md).
+**Does it work with Android?** Yes. Scan the QR code with the Camera app or Google Lens and open the link in Chrome or your default browser. See [docs/ANDROID.md](docs/ANDROID.md).
 
 **Can I use it with a Mac, an iPad or another PC?** Yes. Any device with a browser can open the pairing link.
 
