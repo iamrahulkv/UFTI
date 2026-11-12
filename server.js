@@ -1,29 +1,35 @@
 // UFTI: AirDrop-style file/text sharing between devices on the same Wi-Fi.
 const http = require('http');
+const https = require('https');
+const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { WebSocketServer } = require('ws');
 const QRCode = require('qrcode');
+const Busboy = require('busboy');
+const hotspot = require('./hotspot');
+const { describe } = require('./netkinds');
+const { createAuth } = require('./auth');
+const { ensureCert } = require('./tlsCert');
 
 const PORT = Number(process.env.PORT) || 8787;
 const DATA = process.env.UFTI_DATA || __dirname;
 const DIR = path.join(DATA, 'received');
 const PUBLIC = path.join(__dirname, 'public');
-const TOKEN_FILE = path.join(DATA, '.token');
 fs.mkdirSync(DIR, { recursive: true });
 
-// Persistent pairing token so a bookmarked/paired phone keeps working across restarts.
-let TOKEN;
-try { TOKEN = fs.readFileSync(TOKEN_FILE, 'utf8').trim(); } catch {}
-if (!TOKEN) { TOKEN = crypto.randomBytes(6).toString('hex'); fs.writeFileSync(TOKEN_FILE, TOKEN); }
+// ---- settings (saved in the data folder) ----
+const SETTINGS_FILE = path.join(DATA, 'settings.json');
+const settings = { secure: false, requirePin: false };
+try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
+const saveSettings = () => fs.writeFile(SETTINGS_FILE, JSON.stringify(settings), () => {});
 
-const hotspot = require('./hotspot');
-const Busboy = require('busboy');
-const { describe } = require('./netkinds');
+const auth = createAuth({ dataDir: DATA, getSettings: () => settings });
+let cert = null;        // { key, cert, fingerprint } once HTTPS has been set up
+let httpsServer = null; // answers TLS connections on the same port
 
-// Network addresses this PC can be reached on. `kind` tells the UI which connection mode they belong to:
+// Network addresses this PC can be reached on. `kind` tells the UI which connection mode they belong to
 // (PC hotspot, phone hotspot for iPhone or Android, or an ordinary network); see netkinds.js.
 function netAddrs() {
   const out = [];
@@ -41,9 +47,37 @@ function lanIPs() {
   const ips = netAddrs().map(a => a.ip).sort((a, b) => (b.startsWith('192.168.') - a.startsWith('192.168.')));
   return preferredIp && ips.includes(preferredIp) ? [preferredIp, ...ips.filter(i => i !== preferredIp)] : ips;
 }
-// Network, hotspot and firewall controls are for the PC window only (never a phone on the network).
+
+// What phones are sent: https when encryption is on, plus the current one-time pairing code.
+const scheme = () => (settings.secure && httpsServer ? 'https' : 'http');
+const pairUrl = ip => `${scheme()}://${ip}:${PORT}/?p=${auth.currentPairing().code}`;
+// The PC window signs itself in with its own one-time code, over loopback only.
+const localUrl = () => `http://localhost:${PORT}/?p=${auth.bootCode()}`;
+
 const isLoopback = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const cleanName = raw => path.basename(String(raw)).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || 'file';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function readBody(req) {
+  let body = '';
+  for await (const c of req) { body += c; if (body.length > 1e6) break; }
+  return body;
+}
+const sendJSON = (res, code, obj) => {
+  res.writeHead(code, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(obj));
+};
+
+// ---- live updates to every open page (Server-Sent Events; the pages only ever listen) ----
+const streams = new Set(); // { res, sid }
+function broadcast(msg) {
+  const data = `data: ${JSON.stringify(msg)}\n\n`;
+  for (const c of streams) c.res.write(data);
+}
+function closeStreams(sid) {
+  for (const c of streams) if (c.sid === sid) { c.res.end(); streams.delete(c); }
+}
+setInterval(() => { for (const c of streams) c.res.write(': ping\n\n'); }, 20000).unref();
 
 // multipart/form-data upload, as sent by Android share tools (HTTP Shortcuts, Tasker, curl -F ...).
 // Every file part becomes a file item; the title, text and url fields become one text item.
@@ -82,11 +116,6 @@ function handleMultipart(req, res, device, client) {
   req.on('aborted', () => files.forEach(f => { f.out.destroy(); fs.unlink(f.dest, () => {}); }));
   req.pipe(bb);
 }
-async function readBody(req) {
-  let body = '';
-  for await (const c of req) { body += c; if (body.length > 1e6) break; }
-  return body;
-}
 
 // ---- state: transfer history, saved to history.json; files live in received/ ----
 // item: {id, kind:'file'|'text', name, size, text, from (device label), fromId (client id), ts}
@@ -103,7 +132,7 @@ function loadHistory() {
     }
     return;
   } catch {}
-  // First run after upgrade: rebuild the list from files already on disk.
+  // First run: rebuild the list from files already on disk.
   for (const f of fs.readdirSync(DIR)) {
     const m = f.match(/^([0-9a-f]{8})__(.+)$/);
     if (!m) continue;
@@ -135,20 +164,96 @@ function removeItem(id, deleteFile) {
 }
 loadHistory();
 
-const sendJSON = (res, code, obj) => {
-  res.writeHead(code, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(obj));
+// ---- HTTPS (optional): same port, the first byte of a connection tells TLS from plain HTTP ----
+async function startTls() {
+  if (httpsServer) return;
+  cert = await ensureCert(DATA, netAddrs().map(a => a.ip));
+  httpsServer = https.createServer({ key: cert.key, cert: cert.cert, minVersion: 'TLSv1.2' }, handler);
+  httpsServer.requestTimeout = 0; // big transfers may take longer than Node's 5 minute default
+}
+const securityState = () => ({ secure: !!(settings.secure && httpsServer), requirePin: !!settings.requirePin,
+  fingerprint: cert ? cert.fingerprint : null });
+
+// ---- small HTML pages for the pairing flow ----
+const PAGE_CSS = 'body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F2F5FB;color:#10213F;font:16px/1.4 -apple-system,"Segoe UI",system-ui,sans-serif}' +
+  '@media(prefers-color-scheme:dark){body{background:#071226;color:#EAF0FF}.c{background:#0F2145!important;border-color:#1F3568!important}}' +
+  '.c{max-width:340px;margin:16px;padding:22px;border:1px solid #DCE3F0;border-radius:16px;background:#fff;border-top:4px solid #F58220}' +
+  'h1{font-size:18px;margin:0 0 8px}p{margin:0 0 14px;color:#5A6B88}input{width:100%;box-sizing:border-box;font:inherit;font-size:24px;letter-spacing:8px;text-align:center;padding:10px;border-radius:10px;border:1px solid #DCE3F0;margin-bottom:12px}' +
+  'button{width:100%;font:inherit;font-weight:600;border:0;border-radius:10px;padding:11px;background:#F58220;color:#0B2E6B}.e{color:#D32F2F}';
+function page(res, status, title, bodyHtml) {
+  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>UFTI</title><style>${PAGE_CSS}</style><div class="c"><h1>${esc(title)}</h1>${bodyHtml}</div>`);
+}
+const tooMany = (res, wait) => {
+  res.writeHead(429, { 'Retry-After': String(wait), 'Content-Type': 'text/plain' });
+  res.end(`Too many attempts. Try again in ${wait} seconds.`);
 };
-const authed = (url, req) =>
-  url.searchParams.get('t') === TOKEN || (req.headers['x-token'] === TOKEN);
+const expiredPage = res => page(res, 403, 'Pairing link expired', '<p>This link was already used or has expired. Scan the QR code in the UFTI window on the PC again.</p>');
+const pinPage = (res, code, error) => page(res, 200, 'Enter the PIN',
+  `<p>${error ? `<span class="e">${esc(error)}</span>` : 'Type the 4-digit PIN shown in the UFTI window on the PC.'}</p>` +
+  `<form method="post" action="/pair"><input type="hidden" name="code" value="${esc(code)}">` +
+  '<input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" autofocus required><button>Pair</button></form>');
+const paired = (res, result, secureReq) => {
+  res.writeHead(303, { 'Set-Cookie': auth.cookieHeader(result.secret, secureReq), Location: '/' });
+  res.end();
+};
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
-const server = http.createServer(async (req, res) => {
+const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+  "connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";
+
+async function handler(req, res) {
   const url = new URL(req.url, 'http://x');
+  const secureReq = !!req.socket.encrypted;
+  const loop = isLoopback(req);
+  const ip = req.socket.remoteAddress || '';
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('Cache-Control', 'no-store');
   try {
-    // Static UI (open; it needs the token to do anything useful).
+    // Requests from the PC itself must be addressed to localhost (guards against DNS rebinding).
+    if (loop && !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(req.headers.host || '')) {
+      res.writeHead(421); return res.end('Misdirected request');
+    }
+
+    // Encrypted mode: browsers on the network are sent to https. Share-key uploads stay on http because
+    // tools such as iOS Shortcuts cannot accept a self-signed certificate.
+    if (settings.secure && httpsServer && !secureReq && !loop) {
+      const a = auth.authenticate(req, url);
+      const keyUpload = a.session && a.via === 'key' && ['/api/upload', '/api/text'].includes(url.pathname);
+      if (!keyUpload) {
+        const host = (req.headers.host || '').replace(/:\d+$/, '');
+        res.writeHead(308, { Location: `https://${host}:${PORT}${req.url}` });
+        return res.end();
+      }
+    }
+
+    // ---- pairing: one-time code in the QR link becomes a session cookie, then the address is cleaned ----
+    if (req.method === 'GET' && url.pathname === '/' && url.searchParams.has('p')) {
+      const wait = auth.blockedFor(ip); if (wait) return tooMany(res, wait);
+      const code = url.searchParams.get('p');
+      const st = auth.peek(code);
+      if (!st.ok || (st.kind === 'boot' && !loop)) { auth.fail(ip); return expiredPage(res); }
+      if (st.needsPin) return pinPage(res, code);
+      return paired(res, auth.consume(code, '', req.headers['user-agent']), secureReq);
+    }
+    if (req.method === 'POST' && url.pathname === '/pair') {
+      const wait = auth.blockedFor(ip); if (wait) return tooMany(res, wait);
+      const origin = req.headers.origin;
+      if (origin && (() => { try { return new URL(origin).host !== req.headers.host; } catch { return true; } })()) { res.writeHead(403); return res.end(); }
+      const form = new URLSearchParams(await readBody(req));
+      const code = form.get('code') || '';
+      const r = auth.consume(code, form.get('pin'), req.headers['user-agent']);
+      if (r.ok) return paired(res, r, secureReq);
+      auth.fail(ip);
+      return r.reason === 'pin' ? pinPage(res, code, `Wrong PIN. ${r.triesLeft} ${r.triesLeft === 1 ? 'try' : 'tries'} left.`) : expiredPage(res);
+    }
+
+    // ---- the page itself and its icons are public; everything useful sits behind the API ----
     if (req.method === 'GET' && !url.pathname.startsWith('/api/')) {
       const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
       const file = path.normalize(path.join(PUBLIC, rel));
@@ -159,32 +264,98 @@ const server = http.createServer(async (req, res) => {
       return fs.createReadStream(file).pipe(res);
     }
 
-    if (!authed(url, req)) return sendJSON(res, 401, { error: 'bad token' });
+    // ---- API: needs a paired device (cookie) or a share key ----
+    const wait = auth.blockedFor(ip); if (wait) return tooMany(res, wait);
+    const a = auth.authenticate(req, url);
+    if (!a.session) {
+      if (a.presented) auth.fail(ip); // only wrong credentials count as a failed attempt
+      return sendJSON(res, 401, { error: 'not paired' });
+    }
+    const viaKey = a.via === 'key';
+    const p = url.pathname;
+    if (viaKey && !(req.method === 'POST' && (p === '/api/upload' || p === '/api/text'))) {
+      return sendJSON(res, 403, { error: 'share keys can only send files and text' });
+    }
+    if (!viaKey && req.method !== 'GET' && req.method !== 'HEAD') { // CSRF: changes must come from our own page
+      const origin = req.headers.origin;
+      if ((origin && (() => { try { return new URL(origin).host !== req.headers.host; } catch { return true; } })())
+          || req.headers['sec-fetch-site'] === 'cross-site') return sendJSON(res, 403, { error: 'cross-site request refused' });
+    }
+    const sid = a.session.h;
+    const pcOnly = () => {
+      if (loop && !viaKey) return true;
+      sendJSON(res, 403, { error: 'only available in the UFTI window on the PC' });
+      return false;
+    };
 
-    if (url.pathname === '/api/network' || url.pathname === '/api/network/select' ||
-        url.pathname === '/api/hotspot' || url.pathname === '/api/firewall') {
-      if (!isLoopback(req)) return sendJSON(res, 403, { error: 'only available in the UFTI window on the PC' });
+    // live updates
+    if (req.method === 'GET' && p === '/api/events') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+      res.write('retry: 2000\n\n');
+      const c = { res, sid };
+      streams.add(c);
+      req.on('close', () => streams.delete(c));
+      return;
+    }
 
-      if (req.method === 'GET' && url.pathname === '/api/network') {
-        const addresses = netAddrs().map(a => ({ ...a, url: `http://${a.ip}:${PORT}/?t=${TOKEN}` }));
-        return sendJSON(res, 200, { port: PORT, preferred: lanIPs()[0] || '', addresses, firewall: await hotspot.firewallRuleExists() });
+    // PC window only: connection, hotspot, firewall, pairing, devices and security settings
+    if (['/api/network', '/api/network/select', '/api/hotspot', '/api/firewall', '/api/pairing', '/api/devices', '/api/keys', '/api/security']
+        .includes(p) || p.startsWith('/api/devices/')) {
+      if (!pcOnly()) return;
+
+      if (req.method === 'GET' && p === '/api/network') {
+        const pr = auth.currentPairing();
+        const addresses = netAddrs().map(x => ({ ...x, url: pairUrl(x.ip) }));
+        return sendJSON(res, 200, { port: PORT, scheme: scheme(), preferred: lanIPs()[0] || '', addresses,
+          pin: settings.requirePin ? pr.pin : null, expires: pr.expires, firewall: await hotspot.firewallRuleExists() });
       }
-      if (req.method === 'POST' && url.pathname === '/api/network/select') {
-        let ip = ''; try { ip = JSON.parse(await readBody(req)).ip; } catch {}
-        if (!netAddrs().some(a => a.ip === ip)) return sendJSON(res, 400, { error: 'unknown address' });
-        preferredIp = ip;
+      if (req.method === 'POST' && p === '/api/network/select') {
+        let ip2 = ''; try { ip2 = JSON.parse(await readBody(req)).ip; } catch {}
+        if (!netAddrs().some(x => x.ip === ip2)) return sendJSON(res, 400, { error: 'unknown address' });
+        preferredIp = ip2;
         return sendJSON(res, 200, { ok: true });
       }
-      if (req.method === 'GET' && url.pathname === '/api/hotspot') return sendJSON(res, 200, await hotspot.status());
-      if (req.method === 'POST' && url.pathname === '/api/hotspot') {
+      if (req.method === 'GET' && p === '/api/pairing') {
+        const pr = auth.currentPairing();
+        return sendJSON(res, 200, { code: pr.code, pin: settings.requirePin ? pr.pin : null, expires: pr.expires, scheme: scheme() });
+      }
+      if (req.method === 'GET' && p === '/api/devices') {
+        return sendJSON(res, 200, { devices: auth.list().map(d => ({ ...d, current: d.id === sid.slice(0, 12) })) });
+      }
+      if (req.method === 'DELETE' && p.startsWith('/api/devices/')) {
+        const gone = auth.revoke(p.slice('/api/devices/'.length));
+        if (!gone) return sendJSON(res, 404, { error: 'not found' });
+        closeStreams(gone.h);
+        return sendJSON(res, 200, { ok: true });
+      }
+      if (req.method === 'POST' && p === '/api/keys') {
+        let name = ''; try { name = JSON.parse(await readBody(req)).name; } catch {}
+        const k = auth.create('key', name || 'Share key');
+        return sendJSON(res, 200, { key: k.secret, id: k.session.h.slice(0, 12), name: k.session.name });
+      }
+      if (p === '/api/security') {
+        if (req.method === 'POST') {
+          let body = {}; try { body = JSON.parse(await readBody(req)); } catch {}
+          if (typeof body.requirePin === 'boolean') settings.requirePin = body.requirePin;
+          if (typeof body.secure === 'boolean') {
+            if (body.secure) { try { await startTls(); } catch (e) { return sendJSON(res, 500, { error: 'could not set up HTTPS: ' + e.message }); } }
+            settings.secure = body.secure;
+          }
+          saveSettings();
+        }
+        return sendJSON(res, 200, securityState());
+      }
+      if (req.method === 'GET' && p === '/api/hotspot') return sendJSON(res, 200, await hotspot.status());
+      if (req.method === 'POST' && p === '/api/hotspot') {
         let action = ''; try { action = JSON.parse(await readBody(req)).action; } catch {}
         if (action === 'start') {
           const r = await hotspot.start();
           if (r.ok) hotspotOwned = true;
           if (r.ok) { // Windows needs a moment to assign the hotspot address; then make it the QR default.
             for (let i = 0; i < 10 && !preferredIp.startsWith('192.168.137.'); i++) {
-              const a = netAddrs().find(x => x.kind === 'pc-hotspot');
-              if (a) preferredIp = a.ip; else await new Promise(s => setTimeout(s, 500));
+              const x = netAddrs().find(y => y.kind === 'pc-hotspot');
+              if (x) preferredIp = x.ip; else await new Promise(s => setTimeout(s, 500));
             }
           }
           return sendJSON(res, 200, r);
@@ -192,21 +363,20 @@ const server = http.createServer(async (req, res) => {
         if (action === 'stop') { preferredIp = ''; hotspotOwned = false; return sendJSON(res, 200, await hotspot.stop()); }
         return sendJSON(res, 400, { error: 'unknown action' });
       }
-      if (req.method === 'POST' && url.pathname === '/api/firewall') return sendJSON(res, 200, await hotspot.allowFirewall(PORT));
+      if (req.method === 'POST' && p === '/api/firewall') return sendJSON(res, 200, await hotspot.allowFirewall(PORT));
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/info') {
-      const urls = lanIPs().map(ip => `http://${ip}:${PORT}/?t=${TOKEN}`);
-      return sendJSON(res, 200, { urls, items, host: os.hostname() });
+    if (req.method === 'GET' && p === '/api/info') {
+      return sendJSON(res, 200, { items, host: os.hostname(), me: { id: sid.slice(0, 12), name: a.session.name } });
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/qr') {
+    if (req.method === 'GET' && p === '/api/qr') {
       const svg = await QRCode.toString(url.searchParams.get('u') || '', { type: 'svg', margin: 1 });
       res.writeHead(200, { 'Content-Type': 'image/svg+xml' });
       return res.end(svg);
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/upload') {
+    if (req.method === 'POST' && p === '/api/upload') {
       // Device label and sender id can come as headers or as ?device= and ?client= (some tools can't set headers).
       const device = req.headers['x-device'] || url.searchParams.get('device') || 'device';
       const client = req.headers['x-client'] || url.searchParams.get('client') || '';
@@ -219,8 +389,7 @@ const server = http.createServer(async (req, res) => {
       const out = fs.createWriteStream(dest);
       req.pipe(out);
       out.on('finish', () => {
-        const item = { id, kind: 'file', name, size: fs.statSync(dest).size,
-          from: device, fromId: client, ts: Date.now() };
+        const item = { id, kind: 'file', name, size: fs.statSync(dest).size, from: device, fromId: client, ts: Date.now() };
         addItem(item);
         sendJSON(res, 200, item);
       });
@@ -229,9 +398,8 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/text') {
-      let body = '';
-      for await (const c of req) { body += c; if (body.length > 1e6) break; }
+    if (req.method === 'POST' && p === '/api/text') {
+      const body = await readBody(req);
       let text = body, from = req.headers['x-device'] || url.searchParams.get('device'), fromId = req.headers['x-client'] || url.searchParams.get('client') || '';
       try { const j = JSON.parse(body); if (j && typeof j.text === 'string') { text = j.text; from = j.from || from; fromId = j.fromId || fromId; } } catch {}
       if (!text.trim()) return sendJSON(res, 400, { error: 'empty' });
@@ -242,28 +410,25 @@ const server = http.createServer(async (req, res) => {
     }
 
     let m;
-    if (req.method === 'GET' && (m = url.pathname.match(/^\/api\/file\/([0-9a-f]{8})$/))) {
+    if (req.method === 'GET' && (m = p.match(/^\/api\/file\/([0-9a-f]{8})$/))) {
       const item = items.find(i => i.id === m[1] && i.kind === 'file');
       if (!item) { res.writeHead(404); return res.end(); }
-      const p = path.join(DIR, `${item.id}__${item.name}`);
       res.writeHead(200, {
         'Content-Length': item.size,
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(item.name)}`,
       });
-      return fs.createReadStream(p).pipe(res);
+      return fs.createReadStream(path.join(DIR, `${item.id}__${item.name}`)).pipe(res);
     }
 
-    if (req.method === 'DELETE' && (m = url.pathname.match(/^\/api\/item\/([0-9a-f]{8})$/))) {
+    if (req.method === 'DELETE' && (m = p.match(/^\/api\/item\/([0-9a-f]{8})$/))) {
       return removeItem(m[1], true) ? sendJSON(res, 200, { ok: true }) : sendJSON(res, 404, { error: 'gone' });
     }
 
     // Clear history entries. Body: { ids: [...], deleteFiles: bool }. Omit ids to clear everything.
-    if (req.method === 'POST' && url.pathname === '/api/clear') {
-      let body = '';
-      for await (const c of req) { body += c; if (body.length > 1e6) break; }
+    if (req.method === 'POST' && p === '/api/clear') {
       let opts = {};
-      try { opts = JSON.parse(body || '{}'); } catch {}
+      try { opts = JSON.parse((await readBody(req)) || '{}'); } catch {}
       const ids = Array.isArray(opts.ids) ? opts.ids : items.map(i => i.id);
       let removed = 0;
       for (const id of ids) if (removeItem(String(id), !!opts.deleteFiles)) removed++;
@@ -275,38 +440,42 @@ const server = http.createServer(async (req, res) => {
     console.error(e);
     if (!res.headersSent) sendJSON(res, 500, { error: String(e.message || e) });
   }
-});
-
-const wss = new WebSocketServer({ noServer: true });
-server.on('upgrade', (req, socket, head) => {
-  const url = new URL(req.url, 'http://x');
-  if (url.pathname !== '/ws' || url.searchParams.get('t') !== TOKEN) return socket.destroy();
-  wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws));
-});
-function broadcast(msg) {
-  const s = JSON.stringify(msg);
-  for (const c of wss.clients) if (c.readyState === 1) c.send(s);
 }
-wss.on('connection', ws => {
-  ws.isAlive = true;
-  ws.on('pong', () => (ws.isAlive = true));
+
+const httpServer = http.createServer(handler);
+httpServer.requestTimeout = 0; // big transfers may take longer than Node's 5 minute default
+
+// One port for both: a TLS handshake starts with byte 0x16, plain HTTP starts with a letter.
+const front = net.createServer(socket => {
+  socket.setTimeout(60000, () => socket.destroy()); // a connection that never says anything (same limit as Node's header timeout)
+  socket.once('data', first => {
+    socket.setTimeout(0);
+    socket.pause();
+    socket.unshift(first);
+    const target = first[0] === 0x16 ? httpsServer : httpServer;
+    if (!target) return socket.destroy();
+    target.emit('connection', socket);
+    process.nextTick(() => socket.resume());
+  });
+  socket.on('error', () => {});
 });
-setInterval(() => {
-  for (const c of wss.clients) { if (!c.isAlive) c.terminate(); else { c.isAlive = false; c.ping(); } }
-}, 20000);
 
 // Used on quit so a hotspot UFTI started doesn't keep running after the app is gone.
 async function stopOwnedHotspot() { if (!hotspotOwned) return; hotspotOwned = false; try { await hotspot.stop(); } catch {} }
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => stopOwnedHotspot().finally(() => process.exit(0)));
-module.exports = { PORT, TOKEN, DIR, lanIPs, stopOwnedHotspot };
-server.listen(PORT, '0.0.0.0', async () => {
+
+const ready = (async () => {
+  if (settings.secure) { try { await startTls(); } catch { settings.secure = false; } }
+  await new Promise(resolve => front.listen(PORT, '0.0.0.0', resolve));
   const ips = lanIPs();
+  const local = localUrl();
   console.log('\n  UFTI is running\n');
   if (!ips.length) console.log('  No LAN address found. Connect to Wi-Fi first.');
-  for (const ip of ips) console.log(`  Phone URL:  http://${ip}:${PORT}/?t=${TOKEN}`);
-  console.log(`  This PC:    http://localhost:${PORT}/?t=${TOKEN}\n`);
-  if (ips[0]) console.log(await QRCode.toString(`http://${ips[0]}:${PORT}/?t=${TOKEN}`, { type: 'terminal', small: true }));
+  else console.log(`  Pair a phone:  ${pairUrl(ips[0])}   (one-time link, 5 minutes)`);
+  console.log(`  This PC:       ${local}\n`);
+  if (ips[0]) console.log(await QRCode.toString(pairUrl(ips[0]), { type: 'terminal', small: true }));
   console.log('  Files are saved in:', DIR, '\n');
-  if (process.platform === 'win32' && !process.env.NO_OPEN)
-    require('child_process').exec(`start "" "http://localhost:${PORT}/?t=${TOKEN}"`);
-});
+  if (process.platform === 'win32' && !process.env.NO_OPEN) require('child_process').exec(`start "" "${local}"`);
+})();
+
+module.exports = { PORT, DIR, lanIPs, stopOwnedHotspot, pairUrl, localUrl, scheme, ready };

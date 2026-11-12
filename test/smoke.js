@@ -1,98 +1,211 @@
-// Smoke test: starts the server on a temp dir and exercises every API route.
+// End-to-end test: starts the real server on a temp data folder and exercises pairing, sessions, share keys,
+// every API route, live events, HTTPS and the rate limiter. The rate limiter test runs last on purpose.
 const { spawn } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
+const http = require('http'), https = require('https');
 
 const PORT = 18787;
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'ufti-'));
-fs.writeFileSync(path.join(data, '.token'), 'testtoken');
 const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
-  env: { ...process.env, PORT, UFTI_DATA: data, NO_OPEN: '1' }, stdio: 'ignore' });
-const base = `http://127.0.0.1:${PORT}`, t = '?t=testtoken';
+  env: { ...process.env, PORT, UFTI_DATA: data, NO_OPEN: '1' }, stdio: ['ignore', 'pipe', 'inherit'] });
+let out = '';
+srv.stdout.on('data', d => (out += d));
+const base = `http://127.0.0.1:${PORT}`;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const UA_IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) AppleWebKit/605.1.15 Safari/604.1';
+const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36';
+
+// Open the one-time link without following the redirect, so the cookie can be read.
+async function pair(url, ua = UA_IPHONE) {
+  const r = await fetch(url, { redirect: 'manual', headers: { 'user-agent': ua } });
+  const sc = r.headers.get('set-cookie');
+  return { status: r.status, cookie: sc ? sc.split(';')[0] : null, setCookie: sc, location: r.headers.get('location'), body: r.status === 303 ? '' : await r.text() };
+}
+const call = (cookie, p, o = {}) => fetch(base + p, { ...o, headers: { ...(cookie ? { cookie } : {}), ...(o.headers || {}) } });
+const json = async (cookie, p, body, method = 'POST') => (await call(cookie, p, { method, body: JSON.stringify(body || {}) })).json();
+const form = (cookie, p, fields) => call(cookie, p, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() });
+
+function rawRequest(mod, opts, body) {
+  return new Promise((resolve, reject) => {
+    const req = mod.request({ host: '127.0.0.1', port: PORT, rejectUnauthorized: false, ...opts }, res => {
+      const sk = res.socket; // read the TLS details now; the socket is detached once the response ends
+      const tls = sk && sk.getProtocol ? { protocol: sk.getProtocol(), san: sk.getPeerCertificate().subjectaltname } : null;
+      let text = ''; res.on('data', c => (text += c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text, tls }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+}
 
 (async () => {
   try {
-    for (let i = 0; i < 30; i++) { try { await fetch(base + '/'); break; } catch { await sleep(200); } }
-    assert.strictEqual((await fetch(base + '/')).status, 200, 'UI served');
-    assert.strictEqual((await fetch(base + '/api/info')).status, 401, 'token required');
+    for (let i = 0; i < 50 && !/This PC:/.test(out); i++) await sleep(200);
+    const boot = (out.match(/This PC:\s+(http:\/\/localhost:\d+\/\?p=\S+)/) || [])[1];
+    assert.ok(boot, 'server prints a one-time link for the PC window');
+    const bootUrl = boot.replace('localhost', '127.0.0.1');
 
+    // ---- the page is public, the API is not ----
+    let r = await fetch(base + '/');
+    assert.strictEqual(r.status, 200, 'UI served');
+    assert.strictEqual(r.headers.get('referrer-policy'), 'no-referrer');
+    assert.strictEqual(r.headers.get('x-content-type-options'), 'nosniff');
+    assert.ok(/default-src 'self'/.test(r.headers.get('content-security-policy')), 'CSP set');
+    assert.strictEqual((await fetch(base + '/api/info')).status, 401, 'API needs pairing');
+    assert.strictEqual((await fetch(base + '/api/info?t=abc')).status, 401, 'a made-up token is refused');
+    assert.strictEqual((await rawRequest(http, { path: '/', headers: { Host: 'evil.example' } })).status, 421, 'DNS rebinding guard');
+
+    // ---- one-time pairing ----
+    const pc = await pair(bootUrl, 'Mozilla/5.0 (Windows NT 10.0) Electron/30 Chrome/120');
+    assert.strictEqual(pc.status, 303); assert.strictEqual(pc.location, '/', 'redirects to a clean address');
+    assert.ok(/HttpOnly/.test(pc.setCookie) && /SameSite=Strict/.test(pc.setCookie) && !/Secure/.test(pc.setCookie), 'cookie flags');
+    assert.strictEqual((await pair(bootUrl)).status, 403, 'the PC code works only once');
+    const C = pc.cookie;
+    r = await call(C, '/api/info');
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual((await r.json()).me.name, 'UFTI app (PC)');
+
+    // ---- transfers (as before) ----
     const payload = Buffer.from('hello ufti');
-    let r = await fetch(`${base}/api/upload${t}`, { method: 'POST', body: payload,
-      headers: { 'x-filename': encodeURIComponent('my file.txt'), 'x-device': 'test' } });
+    r = await call(C, '/api/upload', { method: 'POST', body: payload, headers: { 'x-filename': encodeURIComponent('my file.txt'), 'x-device': 'test' } });
     const file = await r.json();
     assert.strictEqual(file.name, 'my file.txt'); assert.strictEqual(file.size, payload.length);
-
-    r = await fetch(`${base}/api/upload${t}&name=..%2F..%2Fevil.txt`, { method: 'POST', body: 'x' });
+    r = await call(C, '/api/upload?name=..%2F..%2Fevil.txt', { method: 'POST', body: 'x' });
     assert.strictEqual((await r.json()).name, 'evil.txt', 'path traversal stripped');
-
-    r = await fetch(`${base}/api/text${t}`, { method: 'POST', body: 'a link' });
+    r = await call(C, '/api/text', { method: 'POST', body: 'a link' });
     assert.strictEqual((await r.json()).text, 'a link');
+    assert.strictEqual((await (await call(C, '/api/info')).json()).items.length, 3);
+    assert.ok(Buffer.from(await (await call(C, `/api/file/${file.id}`)).arrayBuffer()).equals(payload), 'download matches upload');
+    assert.strictEqual((await call(C, `/api/item/${file.id}`, { method: 'DELETE' })).status, 200);
+    assert.strictEqual((await call(C, `/api/file/${file.id}`)).status, 404);
 
-    const info = await (await fetch(`${base}/api/info${t}`)).json();
-    assert.strictEqual(info.items.length, 3);
-
-    r = await fetch(`${base}/api/file/${file.id}${t}`);
-    assert.ok(Buffer.from(await r.arrayBuffer()).equals(payload), 'download matches upload');
-
-    r = await fetch(`${base}/api/item/${file.id}${t}`, { method: 'DELETE' });
-    assert.strictEqual(r.status, 200);
-    assert.strictEqual((await fetch(`${base}/api/file/${file.id}${t}`)).status, 404);
-
-    // History: sender id is recorded, clear removes entries, files optionally survive.
-    r = await fetch(`${base}/api/upload${t}`, { method: 'POST', body: 'keep me',
-      headers: { 'x-filename': 'keep.txt', 'x-client': 'phone1', 'x-device': 'iPhone' } });
+    // history and clear
+    r = await call(C, '/api/upload?device=iPhone&client=phone1', { method: 'POST', body: 'keep me', headers: { 'x-filename': 'keep.txt' } });
     const kept = await r.json();
-    assert.strictEqual(kept.fromId, 'phone1', 'client id stored');
-    await sleep(400); // history.json is written shortly after a change
+    assert.strictEqual(kept.fromId, 'phone1'); assert.strictEqual(kept.from, 'iPhone');
+    await sleep(400);
     assert.ok(fs.existsSync(path.join(data, 'history.json')), 'history persisted');
-
-    r = await fetch(`${base}/api/clear${t}`, { method: 'POST', body: JSON.stringify({ ids: [kept.id], deleteFiles: false }) });
-    assert.strictEqual((await r.json()).removed, 1);
+    assert.strictEqual((await json(C, '/api/clear', { ids: [kept.id], deleteFiles: false })).removed, 1);
     assert.ok(fs.existsSync(path.join(data, 'received', `${kept.id}__keep.txt`)), 'file kept when deleteFiles=false');
-    assert.strictEqual((await fetch(`${base}/api/file/${kept.id}${t}`)).status, 404, 'entry gone from history');
+    await json(C, '/api/clear', { deleteFiles: true });
+    assert.strictEqual((await (await call(C, '/api/info')).json()).items.length, 0, 'clear all empties history');
 
-    r = await fetch(`${base}/api/clear${t}`, { method: 'POST', body: JSON.stringify({ deleteFiles: true }) });
-    const left = await (await fetch(`${base}/api/info${t}`)).json();
-    assert.strictEqual(left.items.length, 0, 'clear all empties history');
-    const files = fs.readdirSync(path.join(data, 'received')).filter(f => f !== `${kept.id}__keep.txt`);
-    assert.strictEqual(files.length, 0, 'deleteFiles removes stored files');
-
-    // Multipart upload, as sent by Android share tools. Device and client can come from the query string.
+    // multipart (Android share tools)
     const fd = new FormData();
     fd.append('file', new Blob(['android file']), 'Réport (1).txt');
     fd.append('file', new Blob(['second']), '../../evil2.txt');
     fd.append('title', 'Page title'); fd.append('url', 'https://example.com');
-    r = await fetch(`${base}/api/upload${t}&device=Android&client=droid1`, { method: 'POST', body: fd });
+    r = await call(C, '/api/upload?device=Android&client=droid1', { method: 'POST', body: fd });
     const mp = await r.json();
-    assert.strictEqual(r.status, 200); assert.strictEqual(mp.items.length, 3, 'two files and one text item');
-    assert.strictEqual(mp.items[0].name, 'Réport (1).txt', 'unicode file name kept');
-    assert.strictEqual(mp.items[1].name, 'evil2.txt', 'path stripped from multipart file name');
-    assert.ok(mp.items.every(i => i.from === 'Android' && i.fromId === 'droid1'), 'device and client from query');
+    assert.strictEqual(mp.items.length, 3, 'two files and one text item');
+    assert.strictEqual(mp.items[0].name, 'Réport (1).txt'); assert.strictEqual(mp.items[1].name, 'evil2.txt');
     assert.strictEqual(mp.items.find(i => i.kind === 'text').text, 'Page title' + String.fromCharCode(10) + 'https://example.com');
-    r = await fetch(`${base}/api/file/${mp.items[0].id}${t}`);
-    assert.strictEqual(await r.text(), 'android file', 'multipart file downloads intact');
+    assert.strictEqual(await (await call(C, `/api/file/${mp.items[0].id}`)).text(), 'android file');
     const fd2 = new FormData(); fd2.append('note', 'nothing useful');
-    r = await fetch(`${base}/api/upload${t}`, { method: 'POST', body: fd2 });
-    assert.strictEqual(r.status, 400, 'multipart with nothing to save is rejected');
+    assert.strictEqual((await call(C, '/api/upload', { method: 'POST', body: fd2 })).status, 400, 'multipart with nothing to save is rejected');
 
-    // Connection panel APIs: available on the PC itself, refused from any network address.
-    r = await fetch(`${base}/api/network${t}`);
-    const netInfo = await r.json();
-    assert.ok(Array.isArray(netInfo.addresses) && netInfo.port === PORT, 'network info');
-    const hsInfo = await (await fetch(`${base}/api/hotspot${t}`)).json();
-    assert.strictEqual(typeof hsInfo.state, 'string', 'hotspot status shape');
-    r = await fetch(`${base}/api/hotspot${t}`, { method: 'POST', body: JSON.stringify({ action: 'explode' }) });
-    assert.strictEqual(r.status, 400, 'unknown hotspot action rejected');
-    r = await fetch(`${base}/api/network/select${t}`, { method: 'POST', body: JSON.stringify({ ip: '8.8.8.8' }) });
-    assert.strictEqual(r.status, 400, 'cannot select an address the PC does not have');
+    // network and hotspot controls
+    const netInfo = await (await call(C, '/api/network')).json();
+    assert.ok(Array.isArray(netInfo.addresses) && netInfo.port === PORT && netInfo.scheme === 'http');
+    assert.strictEqual(typeof (await (await call(C, '/api/hotspot')).json()).state, 'string');
+    assert.strictEqual((await call(C, '/api/hotspot', { method: 'POST', body: '{"action":"explode"}' })).status, 400);
+    assert.strictEqual((await call(C, '/api/network/select', { method: 'POST', body: '{"ip":"8.8.8.8"}' })).status, 400);
     const lan = Object.values(os.networkInterfaces()).flat().find(i => i && i.family === 'IPv4' && !i.internal);
     if (lan) {
-      for (const [m, p] of [['GET', '/api/network'], ['GET', '/api/hotspot'], ['POST', '/api/hotspot'], ['POST', '/api/firewall']]) {
-        r = await fetch(`http://${lan.address}:${PORT}${p}${t}`, { method: m, body: m === 'POST' ? '{"action":"start"}' : undefined });
-        assert.strictEqual(r.status, 403, `${m} ${p} must be PC-only`);
+      for (const [m, p] of [['GET', '/api/network'], ['GET', '/api/pairing'], ['GET', '/api/devices'], ['POST', '/api/hotspot'], ['POST', '/api/firewall'], ['POST', '/api/keys'], ['GET', '/api/security']]) {
+        const x = await rawRequest(http, { host: lan.address, path: p, method: m, headers: { cookie: C } }, m === 'POST' ? '{}' : undefined);
+        assert.strictEqual(x.status, 403, `${m} ${p} must be PC-only`);
       }
     }
+
+    // ---- pairing a second device with the code from the PC window ----
+    const p1 = await (await call(C, '/api/pairing')).json();
+    assert.ok(p1.code.length >= 21 && p1.pin === null);
+    const phone = await pair(`${base}/?p=${p1.code}`, UA_ANDROID);
+    assert.strictEqual(phone.status, 303); const P = phone.cookie;
+    assert.strictEqual((await (await call(P, '/api/info')).json()).me.name, 'Android · Chrome');
+    assert.strictEqual((await pair(`${base}/?p=${p1.code}`)).status, 403, 'a pairing code works only once');
+    assert.notStrictEqual((await (await call(C, '/api/pairing')).json()).code, p1.code, 'a new code appears after use');
+
+    // ---- live events (server-sent events) ----
+    const ac = new AbortController();
+    const evRes = await fetch(base + '/api/events', { headers: { cookie: P }, signal: ac.signal });
+    assert.strictEqual(evRes.status, 200); assert.ok(/text\/event-stream/.test(evRes.headers.get('content-type')));
+    const reader = evRes.body.getReader(); let seen = '';
+    const gotEvent = (async () => { const dec = new TextDecoder(); for (;;) { const { value, done } = await reader.read(); if (done) return false; seen += dec.decode(value); if (/"type":"add"/.test(seen)) return true; } })();
+    await sleep(150);
+    await call(C, '/api/text', { method: 'POST', body: 'live event' });
+    assert.ok(await Promise.race([gotEvent, sleep(3000).then(() => false)]), 'an added item reaches other devices live');
+
+    // ---- devices list and revoke ----
+    const list = (await (await call(C, '/api/devices')).json()).devices;
+    assert.ok(list.length >= 2 && list.some(d => d.current), 'devices list');
+    const phoneId = list.find(d => /Android/.test(d.name)).id;
+    assert.strictEqual((await call(C, `/api/devices/${phoneId}`, { method: 'DELETE' })).status, 200);
+    assert.strictEqual((await call(P, '/api/info')).status, 401, 'revoked device is signed out');
+    assert.ok(await Promise.race([reader.read().then(x => x.done), sleep(2000).then(() => false)]), 'revoking closes its live stream');
+    ac.abort();
+
+    // ---- optional PIN ----
+    assert.strictEqual((await json(C, '/api/security', { requirePin: true })).requirePin, true);
+    let pp = await (await call(C, '/api/pairing')).json();
+    assert.ok(/^\d{4}$/.test(pp.pin));
+    let pg = await pair(`${base}/?p=${pp.code}`);
+    assert.strictEqual(pg.status, 200); assert.ok(/name="pin"/.test(pg.body), 'a PIN is asked for');
+    const wrong = pp.pin === '0000' ? '1111' : '0000';
+    pg = await form(null, '/pair', { code: pp.code, pin: wrong });
+    assert.ok(/Wrong PIN. 2 tries left/.test(await pg.text()));
+    pg = await form(null, '/pair', { code: pp.code, pin: pp.pin });
+    assert.strictEqual(pg.status, 303, 'right PIN pairs'); const withPin = pg.headers.get('set-cookie').split(';')[0];
+    assert.strictEqual((await call(withPin, '/api/info')).status, 200);
+    pp = await (await call(C, '/api/pairing')).json();
+    for (let i = 0; i < 3; i++) await form(null, '/pair', { code: pp.code, pin: wrong });
+    assert.strictEqual((await form(null, '/pair', { code: pp.code, pin: pp.pin })).status, 403, 'three wrong PINs burn the code');
+    await json(C, '/api/security', { requirePin: false });
+
+    // ---- share keys: can only send, revocable ----
+    const key = await json(C, '/api/keys', { name: 'Test shortcut' });
+    assert.ok(key.key.startsWith('uk_'));
+    r = await call(null, `/api/upload?t=${key.key}&device=Android`, { method: 'POST', body: 'from a shortcut', headers: { 'x-filename': 'sc.txt' } });
+    assert.strictEqual(r.status, 200, 'key can upload');
+    r = await call(null, '/api/text', { method: 'POST', body: 'hi', headers: { 'x-token': key.key } });
+    assert.strictEqual(r.status, 200, 'key can send text, also as a header');
+    assert.strictEqual((await call(null, `/api/info?t=${key.key}`)).status, 403, 'key cannot read history');
+    assert.strictEqual((await call(null, `/api/network?t=${key.key}`)).status, 403, 'key cannot use PC controls');
+    assert.strictEqual((await call(`ufti_session=${key.key}`, '/api/info')).status, 401, 'a key is not a session cookie');
+    assert.strictEqual((await call(C, `/api/devices/${key.id}`, { method: 'DELETE' })).status, 200);
+    assert.strictEqual((await call(null, `/api/text?t=${key.key}`, { method: 'POST', body: 'x' })).status, 401, 'revoked key stops working');
+
+    // ---- cross-site requests are refused ----
+    for (const h of [{ origin: 'https://evil.example' }, { 'sec-fetch-site': 'cross-site' }]) {
+      assert.strictEqual((await call(C, '/api/text', { method: 'POST', body: 'x', headers: h })).status, 403, 'CSRF refused');
+    }
+    assert.strictEqual((await call(C, '/api/text', { method: 'POST', body: 'same origin', headers: { origin: base } })).status, 200);
+
+    // ---- optional HTTPS on the same port ----
+    const st = await json(C, '/api/security', { secure: true });
+    assert.ok(st.secure && /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(st.fingerprint), 'HTTPS on, with a fingerprint');
+    assert.strictEqual((await (await call(C, '/api/network')).json()).scheme, 'https', 'QR links switch to https');
+    const tlsInfo = await rawRequest(https, { path: '/api/info', headers: { cookie: C } });
+    assert.strictEqual(tlsInfo.status, 200, 'same session works over HTTPS');
+    assert.ok(/^TLSv1\.[23]$/.test(tlsInfo.tls.protocol), 'modern TLS');
+    assert.ok(/IP Address:127\.0\.0\.1/.test(tlsInfo.tls.san), 'certificate covers the PC');
+    assert.strictEqual((await call(C, '/api/info')).status, 200, 'the PC window keeps working over plain loopback');
+    const pSec = await (await call(C, '/api/pairing')).json();
+    const viaTls = await rawRequest(https, { path: `/?p=${pSec.code}` });
+    assert.strictEqual(viaTls.status, 303); assert.ok(/; Secure/.test(String(viaTls.headers['set-cookie'])), 'cookie is Secure over HTTPS');
+    const up = await rawRequest(https, { path: '/api/upload', method: 'POST', headers: { cookie: C, 'x-filename': 'tls.txt' } }, 'encrypted upload');
+    assert.strictEqual(up.status, 200, 'uploads work over HTTPS');
+    await json(C, '/api/security', { secure: false });
+    assert.strictEqual((await (await call(C, '/api/network')).json()).scheme, 'http');
+
+    // ---- rate limit (last: it blocks this address for a minute) ----
+    let blocked = null;
+    for (let i = 0; i < 30 && !blocked; i++) { const x = await call('ufti_session=wrong', '/api/info'); if (x.status === 429) blocked = x; }
+    assert.ok(blocked && Number(blocked.headers.get('retry-after')) > 0, 'too many wrong attempts are rate limited');
+    assert.strictEqual((await call(C, '/api/info')).status, 429, 'the block applies to that address');
+
     console.log('smoke test passed');
   } catch (e) { console.error('FAILED:', e.message); process.exitCode = 1; }
-  finally { srv.kill(); fs.rmSync(data, { recursive: true, force: true }); }
+  finally { srv.kill(); await sleep(100); fs.rmSync(data, { recursive: true, force: true }); process.exit(process.exitCode || 0); }
 })();

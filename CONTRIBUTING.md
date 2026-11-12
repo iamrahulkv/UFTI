@@ -15,10 +15,13 @@ Node.js 18+ is required. The project has no build step: `server.js`, `main.js` a
 ## Project layout
 | Path | What it is |
 |---|---|
-| `server.js` | HTTP + WebSocket backend |
+| `server.js` | HTTP/HTTPS backend with live events (Server-Sent Events) |
+| `auth.js` | Pairing codes, sessions, share keys, rate limiter |
+| `tlsCert.js` | Self-signed certificate for the optional HTTPS mode |
+| `hotspot.js`, `netkinds.js` | Windows hotspot control, network address kinds |
 | `main.js` | Electron shell (window, tray) |
 | `public/` | The web UI used on PC and phone (single page, no framework) |
-| `test/smoke.js` | End-to-end API test |
+| `test/` | `kinds.js` and `auth.js` unit tests, `smoke.js` end-to-end test |
 | `docs/` | Documentation and screenshots |
 
 See [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) for the design and API.

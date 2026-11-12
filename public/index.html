@@ -111,6 +111,22 @@
   .step img { width:104px; height:104px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:4px; }
   .step code { font-size:11.5px; word-break:break-all; }
   #addrSel { margin-top:4px; max-width:100%; font:inherit; font-size:12px; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:2px 4px; }
+  .pinbox { display:inline-block; margin-left:8px; padding:3px 10px; border-radius:99px; background:var(--tint); border:1px solid var(--saffron); font-size:12px; vertical-align:middle; }
+  .pinbox b { font-size:14px; letter-spacing:2px; }
+  #sec { display:none; }
+  #sec.show { display:block; }
+  #sec summary { cursor:pointer; font-weight:600; font-size:13.5px; }
+  #sec h3 { font-size:13px; margin:12px 0 4px; }
+  .tog { display:flex; gap:8px; align-items:flex-start; margin-top:10px; font-size:13px; }
+  .tog input { margin-top:3px; }
+  .tog small { display:block; color:var(--mute); font-size:11.5px; font-weight:400; }
+  #sec input[type=text], #keyName { flex:1; min-width:0; font:inherit; font-size:13px; padding:6px 9px; border-radius:9px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  ul.dev { gap:4px; }
+  ul.dev li { padding:6px 9px; border-radius:9px; font-size:12.5px; }
+  ul.dev .meta { font-size:12.5px; }
+  ul.dev .sub { font-size:11px; }
+  #keyOut code { display:block; margin-top:4px; padding:7px 9px; border-radius:9px; background:var(--bg); border:1px solid var(--line); word-break:break-all; font-size:12px; }
+  main.unpaired > :not(.banner):not(.tagline):not(#notPaired):not(footer) { display:none !important; }
   ul { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
   li { display:flex; gap:9px; align-items:center; padding:7px 9px; background:var(--card); border:1px solid var(--line); border-radius:10px; }
   li .ic { font-size:17px; flex:none; width:30px; height:30px; display:grid; place-items:center; border-radius:8px; background:var(--tint); }
@@ -160,11 +176,17 @@
   </header>
   <p class="tagline"><b>Scan and Send</b> — Cross-Platform Wi-Fi File Transfer via QR</p>
 
+  <section id="notPaired" class="card" hidden>
+    <h2>Not paired yet</h2>
+    <p class="hint">This device isn't paired with the PC, or it was removed. Scan the QR code in the UFTI window on the PC with this phone's camera to pair it.</p>
+  </section>
+
   <section id="pair" class="card">
     <div class="tabs" id="modeTabs">
       <button data-mode="wifi">Same Wi-Fi</button>
       <button data-mode="offline">No Wi-Fi</button>
     </div>
+    <span id="pinBox" class="pinbox" hidden>Pairing PIN <b id="pinVal"></b></span>
 
     <div id="paneWifi" class="pane">
       <img id="qr" alt="QR code">
@@ -173,6 +195,7 @@
         <p>Scan with your phone camera (iPhone or Android). Both devices must be on the same Wi-Fi.</p>
         <code id="url"></code>
         <select id="addrSel" hidden aria-label="Network address"></select>
+        <p class="hint small" id="pairNote"></p>
       </div>
     </div>
 
@@ -209,6 +232,25 @@
       </div>
       <p class="hint small"><a href="#" id="fwBtn">Phone can't connect? Allow UFTI through the firewall</a></p>
     </div>
+  </section>
+
+  <section id="sec" class="card">
+    <details id="secDetails">
+      <summary>Security and devices</summary>
+      <label class="tog"><input type="checkbox" id="secHttps"><span><b>Encrypt with HTTPS</b><small id="secHttpsNote">Hides transfers from other devices on the network. Each phone shows a one-time certificate warning: choose to continue.</small></span></label>
+      <label class="tog"><input type="checkbox" id="secPin"><span><b>Require a PIN to pair</b><small>Pairing also needs the 4-digit PIN shown above. Good for shared places.</small></span></label>
+      <p class="hint small" id="certFp"></p>
+      <h3>Paired devices</h3>
+      <ul id="devList" class="dev"></ul>
+      <h3>Share keys</h3>
+      <p class="hint small">For the iPhone Shortcut or an Android share app. A key can only send files and text, and can be revoked any time.</p>
+      <div class="row"><input id="keyName" placeholder="Name, for example My phone" maxlength="40"><button id="keyMake">Create key</button></div>
+      <div id="keyOut" hidden>
+        <p class="hint small">Copy this now. It won't be shown again.</p>
+        <code id="keyVal"></code>
+        <div class="row end"><button class="ghost" id="keyCopy">Copy upload address</button></div>
+      </div>
+    </details>
   </section>
 
   <section class="card">
@@ -262,8 +304,6 @@ const store = {
   get: k => { try { return localStorage.getItem('ufti_' + k) || localStorage.getItem('wd_' + k) || ''; } catch { return ''; } },
   set: (k, v) => { try { localStorage.setItem('ufti_' + k, v); } catch {} },
 };
-let TOKEN = qs.get('t') || store.get('token');
-if (qs.get('t')) store.set('token', TOKEN);
 const ua = navigator.userAgent;
 const DEVICE = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows PC' : /Mac/.test(ua) ? 'Mac' : 'Device';
 const $ = id => document.getElementById(id);
@@ -275,7 +315,8 @@ if (!CLIENT) { CLIENT = Math.random().toString(36).slice(2, 12); store.set('clie
 let tab = store.get('tab') || 'all';
 const isMine = it => it.fromId ? it.fromId === CLIENT : it.from === DEVICE;
 const visible = () => [...items.values()].filter(it => tab === 'all' || (tab === 'sent') === isMine(it)).sort((a, b) => b.ts - a.ts);
-const api = (p, o = {}) => fetch(p + (p.includes('?') ? '&' : '?') + 't=' + TOKEN, o);
+// Signed in by the session cookie the pairing link set; nothing secret travels in the address.
+const api = (p, o = {}) => fetch(p, o);
 
 function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
 const fmt = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : n < 1073741824 ? (n/1048576).toFixed(1) + ' MB' : (n/1073741824).toFixed(2) + ' GB';
@@ -315,7 +356,7 @@ function render() {
     if (it.kind === 'file') {
       li.innerHTML = `<div class="ic">${icon(it.name)}</div><div class="meta"><div class="name">${esc(it.name)}</div>
         <div class="sub">${tag} · ${fmt(it.size)} · ${ago(it.ts)}</div></div>
-        ${mine ? '' : `<a href="/api/file/${it.id}?t=${TOKEN}" download="${esc(it.name)}"><button>Save</button></a>`}
+        ${mine ? '' : `<a href="/api/file/${it.id}" download="${esc(it.name)}"><button>Save</button></a>`}
         <button class="ghost" data-del="${it.id}" title="Delete">✕</button>`;
     } else {
       li.innerHTML = `<div class="ic">💬</div><div class="meta"><div class="name txt">${esc(it.text)}</div>
@@ -368,7 +409,7 @@ function upload(file) {
   $('list').prepend(li);
   return new Promise(res => {
     const x = new XMLHttpRequest();
-    x.open('POST', '/api/upload?t=' + TOKEN);
+    x.open('POST', '/api/upload');
     x.setRequestHeader('x-filename', encodeURIComponent(file.name));
     x.setRequestHeader('x-device', DEVICE);
     x.setRequestHeader('x-client', CLIENT);
@@ -411,7 +452,7 @@ const isPC = ['localhost', '127.0.0.1'].includes(location.hostname);
 let net = { addresses: [], preferred: '', firewall: false }, hs = null;
 let mode = store.get('mode') || 'wifi', off = store.get('off') || 'pc', hsBusy = false;
 if (off === 'iphone') off = 'phone'; // pre-Android versions saved this value
-const qrSrc = text => '/api/qr?t=' + TOKEN + '&u=' + encodeURIComponent(text);
+const qrSrc = text => '/api/qr?u=' + encodeURIComponent(text);
 const setImg = (img, src) => { if (img.dataset.src !== src) { img.dataset.src = src; img.src = src; } };
 const kindLabel = a => a.via || 'Wi-Fi / LAN';
 const jpost = async (p, body) => (await api(p, { method: 'POST', body: JSON.stringify(body || {}) })).json();
@@ -437,6 +478,12 @@ function renderConnect() {
     sel.innerHTML = list.map(a => '<option value="' + a.ip + '">' + a.ip + ' · ' + esc(kindLabel(a)) + '</option>').join('');
   }
   if (cur) sel.value = cur.ip;
+
+  $('pinBox').hidden = !net.pin;
+  if (net.pin) $('pinVal').textContent = net.pin;
+  $('pairNote').textContent = net.scheme === 'https'
+    ? 'Encrypted. This QR works once and expires in 5 minutes. The phone shows a one-time certificate warning: iPhone, Show Details then visit the website; Android, Advanced then Proceed.'
+    : 'This QR works once and expires in 5 minutes. A new one appears by itself.';
 
   // PC hotspot.
   const on = hs && hs.state === 'On';
@@ -478,6 +525,8 @@ async function refreshNet() {
 function initConnect() {
   if (initConnect.done) return; initConnect.done = true;
   $('pair').classList.add('show');
+  $('sec').classList.add('show');
+  initSecurity();
   $('modeTabs').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; mode = b.dataset.mode; store.set('mode', mode); refreshNet(); });
   $('offTabs').addEventListener('click', e => { const b = e.target.closest('[data-off]'); if (!b) return; off = b.dataset.off; store.set('off', off); refreshNet(); });
   $('addrSel').addEventListener('change', async e => { await jpost('/api/network/select', { ip: e.target.value }); refreshNet(); });
@@ -498,9 +547,74 @@ function initConnect() {
   setInterval(refreshNet, 4000);
 }
 
+// ---- security panel (PC window only): HTTPS, PIN, paired devices, share keys ----
+let sec = { secure: false, requirePin: false, fingerprint: null };
+function renderSecurity(devices) {
+  $('secHttps').checked = !!sec.secure;
+  $('secPin').checked = !!sec.requirePin;
+  $('certFp').textContent = sec.fingerprint ? 'Certificate fingerprint (SHA-256): ' + sec.fingerprint.slice(0, 29) + '…' : '';
+  const ul = $('devList');
+  ul.innerHTML = '';
+  for (const d of devices) {
+    const li = document.createElement('li');
+    li.innerHTML = '<div class="meta"><div class="name">' + (d.kind === 'key' ? 'Key: ' : '') + esc(d.name) + (d.current ? ' (this window)' : '') + '</div>' +
+      '<div class="sub">paired ' + ago(d.created) + ' · last seen ' + ago(d.lastSeen) + '</div></div>' +
+      (d.current ? '' : '<button class="ghost" data-revoke="' + d.id + '">Revoke</button>');
+    ul.appendChild(li);
+  }
+  if (!devices.length) ul.innerHTML = '<li><div class="meta"><div class="sub">No devices yet.</div></div></li>';
+}
+async function refreshSecurity() {
+  try {
+    sec = await (await api('/api/security')).json();
+    const { devices } = await (await api('/api/devices')).json();
+    renderSecurity(devices);
+  } catch {}
+}
+function initSecurity() {
+  $('secHttps').onchange = async e => {
+    const r = await jpost('/api/security', { secure: e.target.checked });
+    if (r.error) toast(r.error);
+    else toast(r.secure ? 'HTTPS is on. New QR codes use https.' : 'HTTPS is off.');
+    await refreshSecurity(); refreshNet();
+  };
+  $('secPin').onchange = async e => { await jpost('/api/security', { requirePin: e.target.checked }); await refreshSecurity(); refreshNet(); };
+  $('devList').addEventListener('click', async e => {
+    const b = e.target.closest('[data-revoke]'); if (!b) return;
+    await api('/api/devices/' + b.dataset.revoke, { method: 'DELETE' });
+    toast('Removed'); refreshSecurity();
+  });
+  $('keyMake').onclick = async () => {
+    const r = await jpost('/api/keys', { name: $('keyName').value.trim() });
+    if (!r.key) return toast('Could not create a key');
+    // Tools send the key over plain http, so this address keeps working even when HTTPS is on.
+    const ip = net.addresses.find(a => a.ip === net.preferred) || net.addresses[0];
+    const addr = 'http://' + (ip ? ip.ip : '<PC-IP>') + ':' + net.port + '/api/upload?t=' + r.key + '&device=';
+    $('keyVal').textContent = addr + '<iPhone or Android>';
+    $('keyCopy').dataset.addr = addr + 'Android';
+    $('keyOut').hidden = false; $('keyName').value = '';
+    refreshSecurity();
+  };
+  $('keyCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText($('keyCopy').dataset.addr); toast('Copied (device set to Android, change it if needed)'); }
+    catch { toast('Select the text and copy it'); }
+  };
+  refreshSecurity();
+  setInterval(refreshSecurity, 8000);
+}
+
+function showNotPaired() {
+  document.querySelector('main').classList.add('unpaired');
+  $('notPaired').hidden = false;
+  $('status').textContent = 'not paired';
+  $('status').classList.remove('on');
+}
+
 async function loadInfo() {
   const r = await api('/api/info');
-  if (r.status === 401) { $('status').textContent = 'bad token: rescan QR'; return false; }
+  if (r.status === 401) { showNotPaired(); return false; }
+  document.querySelector('main').classList.remove('unpaired');
+  $('notPaired').hidden = true;
   const info = await r.json();
   items.clear(); info.items.forEach(i => items.set(i.id, i)); render();
   // The connection panel (QR codes, hotspot) is only for the PC window.
@@ -508,18 +622,25 @@ async function loadInfo() {
   return true;
 }
 
-let ws, retry = 500;
+// Live updates arrive as server-sent events; the browser reconnects by itself if the link drops.
+let es;
 function connect() {
-  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?t=' + TOKEN);
-  ws.onopen = async () => { retry = 500; $('status').textContent = 'connected'; $('status').classList.add('on'); await loadInfo(); };
-  ws.onclose = () => { $('status').textContent = 'reconnecting…'; $('status').classList.remove('on'); setTimeout(connect, retry = Math.min(retry * 1.7, 5000)); };
-  ws.onmessage = e => {
+  if (es) es.close();
+  es = new EventSource('/api/events');
+  es.onopen = async () => { $('status').textContent = 'connected'; $('status').classList.add('on'); await loadInfo(); };
+  es.onerror = async () => {
+    $('status').classList.remove('on');
+    // A 401 ends the stream for good (not paired, or removed on the PC); anything else retries.
+    try { const r = await fetch('/api/info'); if (r.status === 401) { es.close(); showNotPaired(); return; } } catch {}
+    $('status').textContent = 'reconnecting…';
+  };
+  es.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.type === 'add') { items.set(m.item.id, m.item); render(); if (!isMine(m.item)) toast('Received from ' + m.item.from); }
     if (m.type === 'remove') { items.delete(m.id); render(); }
   };
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && ws.readyState > 1) connect(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && es && es.readyState === 2) connect(); });
 connect();
 setInterval(render, 60000);
 </script>

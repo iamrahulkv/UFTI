@@ -30,17 +30,17 @@ UFTI accepts a standard `multipart/form-data` upload, which most Android tools c
 | Setting | Value |
 |---|---|
 | Method | `POST` |
-| URL | `http://<PC-IP>:8787/api/upload?t=<TOKEN>&device=Android` |
+| URL | `http://<PC-IP>:8787/api/upload?t=<SHARE-KEY>&device=Android` |
 | Body | `multipart/form-data` with the shared file in a field (any name, for example `file`) |
 | Optional text fields | `title`, `text`, `url` become one text item |
 
-Get `<PC-IP>` and `<TOKEN>` from the phone link in the UFTI window. For example, `http://192.168.1.20:8787/?t=abc123` gives IP `192.168.1.20` and token `abc123`.
+Create a share key in the UFTI window: open **Security and devices**, type a name, press **Create key**, and copy the address it shows. A share key can only send files and text, is shown once, and can be removed any time. Use `http://` here: it keeps working even when HTTPS is turned on, because share apps can't accept a self-signed certificate.
 
 Apps that can do this and appear in the Share menu include **HTTP Shortcuts** (free, open source) and **Tasker**. Menu names differ between versions, so follow the app's own guide for "receive shared files" and use the request above. Several files in one share are all saved.
 
 Test it from a terminal (for example Termux) with:
 ```bash
-curl -F "file=@photo.jpg" "http://192.168.1.20:8787/api/upload?t=abc123&device=Android"
+curl -F "file=@photo.jpg" "http://192.168.1.20:8787/api/upload?t=<SHARE-KEY>&device=Android"
 ```
 
 ## Good to know

@@ -22,6 +22,7 @@ Send files, photos, videos and text between your Windows 11 PC and your **iPhone
 
 ## Why UFTI
 - **Private.** Data goes straight from device to device on your local network. No server in the cloud, no sign-up, no tracking.
+- **Secure by design.** One-time QR pairing, a separate revocable session for each device, an optional PIN, and optional HTTPS. See [SECURITY.md](SECURITY.md).
 - **Works with or without Wi-Fi.** Use your home network, or switch to **No Wi-Fi** and let the PC (or the iPhone) create its own hotspot. See [no-Wi-Fi guide](docs/NO-WIFI.md).
 - **iPhone and Android.** The phone side is a web page, so it works in your phone's default browser, whether that's Safari, Chrome, Samsung Internet, Firefox or any other modern browser. See the [Android guide](docs/ANDROID.md).
 - **Scan and send.** Scan a QR code and it opens in the phone's browser. Add it to your Home Screen for an app icon.
@@ -64,7 +65,7 @@ npm run app      # desktop app
 
 ## Use
 1. Open UFTI on the PC. It shows a QR code.
-2. Make sure the phone is on the **same Wi-Fi**, then scan the QR code with the Camera app (or Google Lens on Android) and open the link in the phone's browser.
+2. Make sure the phone is on the **same Wi-Fi**, then scan the QR code with the Camera app (or Google Lens on Android) and open the link in the phone's browser. The QR code works once, and a new one appears after each scan.
 3. Tap **Tap or drop files to send** on either device, or type text and press **Send text**.
 4. Things you send appear on both devices instantly. Press **Save** to download, **Copy** for text.
 5. Use the **All / Sent / Received** tabs to review your history. **Clear history** removes what the current tab shows, from every device, and can optionally delete the saved files from the PC too.
@@ -73,7 +74,7 @@ npm run app      # desktop app
 
 On the PC, received files are saved to `%APPDATA%\ufti\received`. Use the tray icon menu, then **Open received folder**.
 
-The phone only needs the QR scan once. The browser remembers the pairing.
+The phone only needs the QR scan once. The browser remembers the pairing until you remove the device under **Security and devices**.
 
 ## Docs
 - [How it works and API reference](docs/HOW-IT-WORKS.md)
@@ -93,7 +94,7 @@ The phone only needs the QR scan once. The browser remembers the pairing.
 
 **Can I use it with a Mac, an iPad or another PC?** Yes. Any device with a browser can open the pairing link.
 
-**Is it safe on public Wi-Fi?** Not recommended. Traffic is unencrypted HTTP, protected only by a pairing token. See [SECURITY.md](SECURITY.md).
+**Is it safe on public Wi-Fi?** It is much safer than before: every device pairs with a one-time QR code, nothing secret sits in the address bar, and you can switch on HTTPS and a PIN. On a network you don't trust, turn on HTTPS or use the PC hotspot mode. See [SECURITY.md](SECURITY.md).
 
 **Why isn't there an App Store or Play Store app?** A real iOS app needs a Mac and a paid Apple developer account, and the web page already works on both platforms with nothing to install. Share-sheet integration comes from an iOS Shortcut or an Android share app instead.
 

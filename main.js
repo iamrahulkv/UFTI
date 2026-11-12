@@ -12,7 +12,7 @@ const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'
 
 function phoneUrl() {
   const ip = srv.lanIPs()[0];
-  return ip ? `http://${ip}:${srv.PORT}/?t=${srv.TOKEN}` : null;
+  return ip ? srv.pairUrl(ip) : null; // one-time link, valid for 5 minutes
 }
 
 function showWindow() {
@@ -26,7 +26,8 @@ function createWindow() {
     width: 520, height: 760, minWidth: 380, minHeight: 520,
     title: 'UFTI', icon, backgroundColor: nativeTheme.shouldUseDarkColors ? '#071226' : '#F2F5FB', autoHideMenuBar: true,
   });
-  win.loadURL(`http://localhost:${srv.PORT}/?t=${srv.TOKEN}`);
+  // The window signs itself in with its own one-time code (loopback only), then the address is cleaned.
+  win.loadURL(srv.localUrl());
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
   // Closing the window keeps the app running in the tray so the phone can still send.
   win.on('close', e => {
@@ -50,8 +51,9 @@ function createTray() {
 }
 
 app.on('second-instance', showWindow);
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   srv = require('./server.js'); // starts listening on 0.0.0.0:PORT
+  await srv.ready;
   createWindow();
   createTray();
   Menu.setApplicationMenu(Menu.buildFromTemplate([
