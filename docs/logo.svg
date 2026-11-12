@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="UFTI logo">
+  <rect x="4.5" y="4.5" width="111" height="111" rx="28" fill="#fff" stroke="#DCE3F0"/>
+  <g fill="none" stroke-width="6" stroke-linejoin="round">
+    <rect x="27" y="27" width="26" height="26" rx="6" stroke="#0B2E6B"/>
+    <rect x="67" y="27" width="26" height="26" rx="6" stroke="#F58220"/>
+    <rect x="27" y="67" width="26" height="26" rx="6" stroke="#1BA345"/>
+  </g>
+  <rect x="35" y="35" width="10" height="10" rx="2.5" fill="#0B2E6B"/>
+  <rect x="75" y="35" width="10" height="10" rx="2.5" fill="#F58220"/>
+  <rect x="35" y="75" width="10" height="10" rx="2.5" fill="#1BA345"/>
+  <path d="M70 69L88 81L70 93" fill="none" stroke="#0B2E6B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

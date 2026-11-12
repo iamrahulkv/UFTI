@@ -1,0 +1,72 @@
+{
+  "name": "ufti",
+  "version": "1.0.0",
+  "description": "UFTI (Unified File Transfer Interface): Scan and Send, cross-platform Wi-Fi file transfer via QR",
+  "main": "main.js",
+  "scripts": {
+    "start": "node server.js",
+    "app": "electron .",
+    "dist": "electron-builder --win portable nsis",
+    "test": "node test/kinds.js && node test/smoke.js"
+  },
+  "keywords": [
+    "ufti",
+    "file-transfer",
+    "qr",
+    "wifi",
+    "airdrop-alternative",
+    "windows",
+    "iphone",
+    "electron",
+    "local-network"
+  ],
+  "author": "iamrahulkv",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.22.2"
+  },
+  "devDependencies": {
+    "electron": "^45.3.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.ufti.app",
+    "productName": "UFTI",
+    "files": [
+      "main.js",
+      "server.js",
+      "public/**",
+      "hotspot.js",
+      "build/icon.png",
+      "package.json",
+      "public/**",
+      "netkinds.js"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "UFTI-Setup-${version}.exe"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "portable": {
+      "artifactName": "UFTI-Portable-${version}.exe"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iamrahulkv/UFTI.git"
+  },
+  "homepage": "https://github.com/iamrahulkv/UFTI"
+}

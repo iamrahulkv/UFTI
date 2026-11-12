@@ -1,0 +1,12 @@
+{
+  "name": "UFTI",
+  "short_name": "UFTI",
+  "description": "Unified File Transfer Interface. Scan and Send: cross-platform Wi-Fi file transfer via QR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F2F5FB",
+  "theme_color": "#0B2E6B",
+  "icons": [
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

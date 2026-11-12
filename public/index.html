@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="UFTI">
+<meta name="theme-color" content="#0B2E6B">
+<meta name="description" content="UFTI (Unified File Transfer Interface): Scan and Send, cross-platform Wi-Fi file transfer via QR.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<title>UFTI</title>
+<script>
+  try { var th = localStorage.getItem('ufti_theme'); if (th === 'dark' || th === 'light') document.documentElement.setAttribute('data-theme', th); } catch (e) {}
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --navy:#0B2E6B; --navy2:#12409A; --saffron:#F58220; --green:#138808;
+    --bg:#F2F5FB; --card:#FFFFFF; --line:#DCE3F0; --fg:#10213F; --mute:#5A6B88;
+    --btn-bg:#F58220; --btn-fg:#0B2E6B;
+    --tab-on-bg:#0B2E6B; --tab-on-fg:#FFFFFF;
+    --out:#C2600A; --in:#138808; --bad:#D32F2F; --tint:rgba(245,130,32,.10);
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg:#071226; --card:#0F2145; --line:#1F3568; --fg:#EAF0FF; --mute:#9AAAD0;
+    --tab-on-bg:#F58220; --tab-on-fg:#0B2E6B;
+    --out:#FFA64D; --in:#46D37A; --bad:#FF6B6B; --tint:rgba(245,130,32,.14);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg:#071226; --card:#0F2145; --line:#1F3568; --fg:#EAF0FF; --mute:#9AAAD0;
+      --tab-on-bg:#F58220; --tab-on-fg:#0B2E6B;
+      --out:#FFA64D; --in:#46D37A; --bad:#FF6B6B; --tint:rgba(245,130,32,.14);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.35 -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding: max(10px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom)); }
+  main { max-width: 620px; margin: 0 auto; display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+
+  .banner { position:relative; overflow:hidden; border-radius:14px; padding:8px 10px 11px; color:#fff;
+    background:linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%); display:flex; align-items:center; gap:10px; }
+  .banner::after { content:""; position:absolute; left:0; right:0; bottom:0; height:3px;
+    background:linear-gradient(90deg, #F58220 0 33.3%, #fff 33.3% 66.6%, #1BA345 66.6% 100%); }
+  .banner img { width:32px; height:32px; flex:none; border-radius:8px; }
+  .banner .t { flex:1; min-width:0; }
+  .banner h1 { font-size:16px; margin:0; letter-spacing:.8px; line-height:1.1; }
+  .banner .exp { font-size:11px; opacity:.85; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tagline { text-align:center; color:var(--mute); font-size:11.5px; margin:0; }
+  .tagline b { color:var(--out); font-weight:600; }
+  .pill { font-size:11px; padding:2px 8px; border-radius:99px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); color:#fff; white-space:nowrap; }
+  .pill.on { background:rgba(27,163,69,.25); border-color:#4BE07D; color:#CFFFE0; }
+  #themeBtn { width:28px; height:28px; padding:0; border-radius:50%; flex:none; display:grid; place-items:center;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); color:#fff; }
+  #themeBtn svg { width:16px; height:16px; }
+  #themeBtn .moon { display:none; }
+  :root[data-theme="dark"] #themeBtn .sun { display:none; }
+  :root[data-theme="dark"] #themeBtn .moon { display:block; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) #themeBtn .sun { display:none; }
+    :root:not([data-theme="light"]) #themeBtn .moon { display:block; }
+  }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; }
+  button { font:inherit; font-size:13px; font-weight:600; border:0; border-radius:9px; padding:6px 12px; background:var(--btn-bg); color:var(--btn-fg); cursor:pointer; }
+  button:disabled { cursor:default; }
+  button.ghost { background:transparent; color:var(--mute); border:1px solid var(--line); padding:4px 10px; font-size:12px; font-weight:500; }
+  button:active { opacity:.8; }
+
+  #drop { display:flex; align-items:center; gap:10px; border:1.5px dashed var(--saffron); background:var(--tint); border-radius:10px;
+    padding:8px 10px; cursor:pointer; transition:background-color .15s; }
+  #drop.over { background:rgba(245,130,32,.22); }
+  #drop .up { width:30px; height:30px; border-radius:50%; background:var(--saffron); display:grid; place-items:center; flex:none; }
+  #drop .up svg { width:16px; height:16px; }
+  #drop b { display:block; font-size:14px; line-height:1.2; }
+  #drop span { color:var(--mute); font-size:11.5px; }
+  .compose { display:flex; gap:6px; align-items:flex-end; margin-top:8px; }
+  textarea { flex:1; min-width:0; height:34px; min-height:34px; max-height:140px; resize:none; border-radius:9px; border:1px solid var(--line);
+    background:var(--bg); color:var(--fg); padding:7px 9px; font:inherit; font-size:13px; line-height:1.3; }
+  textarea:focus { outline:2px solid var(--saffron); outline-offset:0; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row.end { justify-content:flex-end; margin-top:6px; }
+
+  #pair { display:none; border-top:3px solid var(--saffron); }
+  #pair.show { display:block; }
+  #pair #qr, #pair #qrIp { width:92px; height:92px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:4px; flex:none; }
+  #pair h2 { margin:0 0 2px; font-size:14px; }
+  #pair p { margin:0 0 4px; color:var(--mute); font-size:12px; }
+  #pair code { font-size:11.5px; word-break:break-all; color:var(--fg); }
+
+
+  [hidden] { display:none !important; }
+  .pane { display:flex; gap:12px; align-items:center; margin-top:8px; }
+  .pane .grow { flex:1; min-width:0; }
+  #pair .tabs { display:inline-flex; }
+  .tabs.sub { margin-top:8px; }
+  .hint { color:var(--mute); font-size:12px; margin:8px 0 0; }
+  .hint.small { font-size:11.5px; }
+  ol.hint { padding-left:18px; }
+  .hint a { color:var(--out); }
+  .msg { font-size:12px; margin:6px 0 0; color:var(--mute); min-height:0; }
+  .msg.err { color:var(--bad); }
+  #hsOff { margin-top:8px; }
+  .steps { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin:8px 0; }
+  .step { display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center; font-size:12px; }
+  .step img { width:104px; height:104px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:4px; }
+  .step code { font-size:11.5px; word-break:break-all; }
+  #addrSel { margin-top:4px; max-width:100%; font:inherit; font-size:12px; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:7px; padding:2px 4px; }
+  ul { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+  li { display:flex; gap:9px; align-items:center; padding:7px 9px; background:var(--card); border:1px solid var(--line); border-radius:10px; }
+  li .ic { font-size:17px; flex:none; width:30px; height:30px; display:grid; place-items:center; border-radius:8px; background:var(--tint); }
+  li .meta { flex:1; min-width:0; }
+  li .name { font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  li .name.txt { white-space:pre-wrap; word-break:break-word; font-weight:400; max-height:5.5em; overflow:auto; }
+  li .sub { color:var(--mute); font-size:11.5px; }
+  li a, li .btn { text-decoration:none; }
+  li button { padding:4px 10px; font-size:12px; }
+  li button.ghost { padding:3px 8px; }
+  .bar { height:4px; background:var(--line); border-radius:9px; overflow:hidden; margin-top:4px; }
+  .bar > i { display:block; height:100%; width:0; background:linear-gradient(90deg, var(--saffron), #1BA345); transition:width .1s; }
+  .empty { text-align:center; color:var(--mute); padding:14px 0; font-size:13px; }
+  .histbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; }
+  .tabs { display:flex; gap:2px; background:var(--card); border:1px solid var(--line); border-radius:9px; padding:2px; }
+  .tabs button { background:transparent; color:var(--mute); padding:3px 9px; font-size:12px; border-radius:7px; font-weight:500; }
+  .tabs button.on { background:var(--tab-on-bg); color:var(--tab-on-fg); font-weight:600; }
+  .tabs small { opacity:.8; margin-left:3px; }
+  li .tag { font-size:11px; font-weight:700; }
+  li .tag.out { color:var(--out); }
+  li .tag.in { color:var(--in); }
+  dialog { border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--fg); padding:16px; max-width:320px; width:calc(100% - 40px); }
+  dialog::backdrop { background:rgba(7,18,38,.6); }
+  dialog h3 { margin:0 0 4px; font-size:16px; }
+  dialog p { margin:0 0 10px; color:var(--mute); font-size:13px; }
+  dialog label { display:flex; gap:8px; align-items:flex-start; font-size:13px; margin-bottom:12px; }
+  button.danger { background:var(--bad); color:#fff; }
+  footer { text-align:center; color:var(--mute); font-size:11px; padding:2px 0 0; }
+  .toast { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); background:var(--navy); color:#fff;
+    padding:7px 14px; border-radius:99px; font-size:13px; opacity:0; pointer-events:none; transition:.2s; border:1px solid rgba(255,255,255,.25); }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<main>
+  <header class="banner">
+    <img src="/logo.svg" alt="UFTI logo">
+    <div class="t">
+      <h1>UFTI</h1>
+      <div class="exp">Unified File Transfer Interface</div>
+    </div>
+    <span id="status" class="pill">connecting…</span>
+    <button id="themeBtn" type="button" title="Switch light / dark theme" aria-label="Switch light or dark theme">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </header>
+  <p class="tagline"><b>Scan and Send</b> — Cross-Platform Wi-Fi File Transfer via QR</p>
+
+  <section id="pair" class="card">
+    <div class="tabs" id="modeTabs">
+      <button data-mode="wifi">Same Wi-Fi</button>
+      <button data-mode="offline">No Wi-Fi</button>
+    </div>
+
+    <div id="paneWifi" class="pane">
+      <img id="qr" alt="QR code">
+      <div class="grow">
+        <h2>Scan to connect</h2>
+        <p>Scan with your phone camera (iPhone or Android). Both devices must be on the same Wi-Fi.</p>
+        <code id="url"></code>
+        <select id="addrSel" hidden aria-label="Network address"></select>
+      </div>
+    </div>
+
+    <div id="paneOffline" hidden>
+      <div class="tabs sub" id="offTabs">
+        <button data-off="pc">PC hotspot</button>
+        <button data-off="phone">Phone hotspot</button>
+      </div>
+
+      <div id="offPc">
+        <p class="hint">No router or internet needed. The PC makes its own Wi-Fi and your phone (iPhone or Android) joins it.</p>
+        <div id="hsOff"><button id="hsStart">Start PC hotspot</button></div>
+        <div id="hsOn" hidden>
+          <div class="steps">
+            <div class="step"><img id="qrWifi" alt="Wi-Fi QR code"><b>1. Join this Wi-Fi</b><code id="hsSsid"></code><code id="hsPass"></code></div>
+            <div class="step"><img id="qrLink" alt="UFTI QR code"><b>2. Then scan this</b><code id="hsUrl"></code></div>
+          </div>
+          <button class="ghost" id="hsStop">Stop hotspot</button>
+        </div>
+        <p class="msg" id="hsMsg"></p>
+      </div>
+
+      <div id="offIphone" hidden>
+        <ol class="hint">
+          <li>On the phone, turn on its hotspot. <b>iPhone:</b> Settings, Personal Hotspot, Allow Others to Join. <b>Android:</b> Settings, Network, Hotspot and tethering, Wi-Fi hotspot.</li>
+          <li>On the PC, join that Wi-Fi. Or use the USB cable (iPhone: Personal Hotspot; Android: USB tethering).</li>
+          <li>UFTI detects it automatically. If it doesn't, open Same Wi-Fi and pick the address there.</li>
+        </ol>
+        <div id="ipOn" class="pane" hidden>
+          <img id="qrIp" alt="QR code">
+          <div class="grow"><h2 id="ipTitle">Connected to the phone hotspot</h2><p>Scan to open UFTI on the phone.</p><code id="ipUrl"></code></div>
+        </div>
+        <p class="msg" id="ipMsg">Waiting for the phone hotspot…</p>
+      </div>
+      <p class="hint small"><a href="#" id="fwBtn">Phone can't connect? Allow UFTI through the firewall</a></p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div id="drop">
+      <div class="up"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+      <div><b>Tap or drop files to send</b><span>Shows up on every connected device</span></div>
+      <input id="file" type="file" multiple hidden>
+    </div>
+    <div class="compose">
+      <textarea id="text" rows="1" placeholder="Type or paste text / a link…"></textarea>
+      <button class="ghost" id="paste">Paste</button>
+      <button id="sendText">Send</button>
+    </div>
+  </section>
+
+  <div class="histbar">
+    <div class="tabs" id="tabs">
+      <button data-tab="all">All<small id="n-all"></small></button>
+      <button data-tab="sent">Sent<small id="n-sent"></small></button>
+      <button data-tab="received">Received<small id="n-received"></small></button>
+    </div>
+    <button class="ghost" id="clearBtn">Clear history</button>
+  </div>
+  <ul id="list"></ul>
+  <footer>UFTI · Unified File Transfer Interface · stays on your Wi-Fi</footer>
+</main>
+<dialog id="clearDlg">
+  <h3>Clear history?</h3>
+  <p id="clearMsg"></p>
+  <label><input type="checkbox" id="clearFiles"> <span>Also delete the saved files from the PC</span></label>
+  <div class="row end">
+    <button class="ghost" id="clearNo">Cancel</button>
+    <button class="danger" id="clearYes">Clear</button>
+  </div>
+</dialog>
+<div class="toast" id="toast"></div>
+<script>
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('ufti_theme', next); } catch (e) {}
+  });
+</script>
+
+<script>
+const qs = new URLSearchParams(location.search);
+const store = {
+  get: k => { try { return localStorage.getItem('ufti_' + k) || localStorage.getItem('wd_' + k) || ''; } catch { return ''; } },
+  set: (k, v) => { try { localStorage.setItem('ufti_' + k, v); } catch {} },
+};
+let TOKEN = qs.get('t') || store.get('token');
+if (qs.get('t')) store.set('token', TOKEN);
+const ua = navigator.userAgent;
+const DEVICE = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows PC' : /Mac/.test(ua) ? 'Mac' : 'Device';
+const $ = id => document.getElementById(id);
+const items = new Map();
+// A stable per-device id lets history tell "sent by me" from "received".
+let CLIENT = '';
+CLIENT = store.get('client');
+if (!CLIENT) { CLIENT = Math.random().toString(36).slice(2, 12); store.set('client', CLIENT); }
+let tab = store.get('tab') || 'all';
+const isMine = it => it.fromId ? it.fromId === CLIENT : it.from === DEVICE;
+const visible = () => [...items.values()].filter(it => tab === 'all' || (tab === 'sent') === isMine(it)).sort((a, b) => b.ts - a.ts);
+const api = (p, o = {}) => fetch(p + (p.includes('?') ? '&' : '?') + 't=' + TOKEN, o);
+
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+const fmt = n => n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1) + ' KB' : n < 1073741824 ? (n/1048576).toFixed(1) + ' MB' : (n/1073741824).toFixed(2) + ' GB';
+const ago = ts => {
+  const s = (Date.now() - ts) / 1000, d = new Date(ts), hm = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + ' min ago';
+  if (d.toDateString() === new Date().toDateString()) return 'Today ' + hm;
+  return d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + hm;
+};
+const icon = n => /\.(png|jpe?g|gif|heic|webp|svg)$/i.test(n) ? '🖼️' : /\.(mp4|mov|mkv|avi|webm)$/i.test(n) ? '🎬' : /\.(mp3|wav|m4a|flac)$/i.test(n) ? '🎵' : /\.(pdf|docx?|xlsx?|pptx?|txt)$/i.test(n) ? '📄' : /\.(zip|rar|7z|tar|gz)$/i.test(n) ? '🗜️' : '📦';
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render() {
+  const list = $('list');
+  const all = [...items.values()];
+  const nSent = all.filter(isMine).length;
+  $('n-all').textContent = ' ' + all.length;
+  $('n-sent').textContent = ' ' + nSent;
+  $('n-received').textContent = ' ' + (all.length - nSent);
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  const arr = visible();
+  $('clearBtn').disabled = !arr.length;
+  $('clearBtn').style.opacity = arr.length ? 1 : .4;
+  const pending = list.querySelectorAll('li[data-up]');
+  list.innerHTML = '';
+  pending.forEach(p => list.appendChild(p));
+  if (!arr.length && !pending.length) {
+    list.innerHTML = `<div class="empty">${tab === 'sent' ? 'Nothing sent yet.' : tab === 'received' ? 'Nothing received yet.' : 'No transfers yet.'}</div>`;
+    return;
+  }
+  for (const it of arr) {
+    const li = document.createElement('li');
+    // Only the receiving device gets Save / Copy: the sender already has the file or text.
+    const mine = isMine(it);
+    const tag = mine ? '<span class="tag out">↑ Sent</span>' : `<span class="tag in">↓ Received from ${esc(it.from)}</span>`;
+    if (it.kind === 'file') {
+      li.innerHTML = `<div class="ic">${icon(it.name)}</div><div class="meta"><div class="name">${esc(it.name)}</div>
+        <div class="sub">${tag} · ${fmt(it.size)} · ${ago(it.ts)}</div></div>
+        ${mine ? '' : `<a href="/api/file/${it.id}?t=${TOKEN}" download="${esc(it.name)}"><button>Save</button></a>`}
+        <button class="ghost" data-del="${it.id}" title="Delete">✕</button>`;
+    } else {
+      li.innerHTML = `<div class="ic">💬</div><div class="meta"><div class="name txt">${esc(it.text)}</div>
+        <div class="sub">${tag} · ${ago(it.ts)}</div></div>
+        ${mine ? '' : `<button data-copy="${it.id}">Copy</button>`}<button class="ghost" data-del="${it.id}" title="Delete">✕</button>`;
+    }
+    list.appendChild(li);
+  }
+}
+
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  tab = b.dataset.tab;
+  store.set('tab', tab);
+  render();
+});
+$('clearBtn').onclick = () => {
+  const arr = visible(), files = arr.filter(i => i.kind === 'file').length;
+  const what = tab === 'all' ? 'all transfers' : tab === 'sent' ? 'everything you sent' : 'everything you received';
+  $('clearMsg').textContent = `This removes ${what} (${arr.length} item${arr.length === 1 ? '' : 's'}) from the history on every connected device.`;
+  $('clearFiles').checked = false;
+  $('clearFiles').closest('label').style.display = files ? 'flex' : 'none';
+  $('clearDlg').showModal();
+};
+$('clearNo').onclick = () => $('clearDlg').close();
+$('clearYes').onclick = async () => {
+  const ids = visible().map(i => i.id);
+  $('clearDlg').close();
+  const r = await api('/api/clear', { method: 'POST', body: JSON.stringify({ ids, deleteFiles: $('clearFiles').checked }) });
+  if (r.ok) { const { removed } = await r.json(); toast(`Cleared ${removed} item${removed === 1 ? '' : 's'}`); }
+  else toast('Could not clear history');
+};
+
+$('list').addEventListener('click', async e => {
+  const del = e.target.closest('[data-del]'), cp = e.target.closest('[data-copy]');
+  if (del) api('/api/item/' + del.dataset.del, { method: 'DELETE' });
+  if (cp) {
+    const txt = items.get(cp.dataset.copy).text;
+    try { await navigator.clipboard.writeText(txt); }
+    catch { const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    toast('Copied');
+  }
+});
+
+function upload(file) {
+  const li = document.createElement('li');
+  li.dataset.up = 1;
+  li.innerHTML = `<div class="ic">⬆️</div><div class="meta"><div class="name">${esc(file.name)}</div>
+    <div class="sub">0%</div><div class="bar"><i></i></div></div>`;
+  $('list').prepend(li);
+  return new Promise(res => {
+    const x = new XMLHttpRequest();
+    x.open('POST', '/api/upload?t=' + TOKEN);
+    x.setRequestHeader('x-filename', encodeURIComponent(file.name));
+    x.setRequestHeader('x-device', DEVICE);
+    x.setRequestHeader('x-client', CLIENT);
+    x.upload.onprogress = e => {
+      if (!e.lengthComputable) return;
+      const p = Math.round(e.loaded / e.total * 100);
+      li.querySelector('.sub').textContent = `${p}% · ${fmt(e.loaded)} of ${fmt(e.total)}`;
+      li.querySelector('i').style.width = p + '%';
+    };
+    x.onload = () => { li.remove(); x.status === 200 ? toast('Sent ' + file.name) : toast('Failed: ' + file.name); res(); };
+    x.onerror = () => { li.remove(); toast('Failed: ' + file.name); res(); };
+    x.send(file);
+  });
+}
+async function sendFiles(files) { for (const f of files) await upload(f); render(); }
+
+$('drop').onclick = () => $('file').click();
+$('file').onchange = e => { sendFiles(e.target.files); e.target.value = ''; };
+['dragover', 'dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+document.addEventListener('drop', e => { if (e.dataTransfer.files.length) sendFiles(e.dataTransfer.files); });
+document.addEventListener('paste', e => {
+  const fs = [...(e.clipboardData?.files || [])];
+  if (fs.length) { e.preventDefault(); sendFiles(fs); }
+});
+
+$('sendText').onclick = async () => {
+  const text = $('text').value.trim(); if (!text) return;
+  await api('/api/text', { method: 'POST', body: JSON.stringify({ text, from: DEVICE, fromId: CLIENT }) });
+  $('text').value = ''; grow();
+};
+$('paste').onclick = async () => {
+  try { $('text').value = await navigator.clipboard.readText(); } catch { toast('Long-press the box and choose Paste'); }
+};
+
+const grow = () => { const t = $('text'); t.style.height = '34px'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; };
+$('text').addEventListener('input', grow);
+// ---- connection panel (PC window only): same Wi-Fi, PC hotspot, phone hotspot (iPhone or Android) ----
+const isPC = ['localhost', '127.0.0.1'].includes(location.hostname);
+let net = { addresses: [], preferred: '', firewall: false }, hs = null;
+let mode = store.get('mode') || 'wifi', off = store.get('off') || 'pc', hsBusy = false;
+if (off === 'iphone') off = 'phone'; // pre-Android versions saved this value
+const qrSrc = text => '/api/qr?t=' + TOKEN + '&u=' + encodeURIComponent(text);
+const setImg = (img, src) => { if (img.dataset.src !== src) { img.dataset.src = src; img.src = src; } };
+const kindLabel = a => a.via || 'Wi-Fi / LAN';
+const jpost = async (p, body) => (await api(p, { method: 'POST', body: JSON.stringify(body || {}) })).json();
+
+function renderConnect() {
+  document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  document.querySelectorAll('#offTabs button').forEach(b => b.classList.toggle('on', b.dataset.off === off));
+  $('paneWifi').hidden = mode !== 'wifi';
+  $('paneOffline').hidden = mode !== 'offline';
+  $('offPc').hidden = off !== 'pc';
+  $('offIphone').hidden = off !== 'phone';
+
+  // Same Wi-Fi: normal networks first; the dropdown appears when there is more than one address.
+  const nets = net.addresses.filter(a => a.kind === 'network' || a.kind === 'phone-hotspot');
+  const list = nets.length ? nets : net.addresses;
+  const cur = list.find(a => a.ip === net.preferred) || list[0];
+  if (cur) { $('url').textContent = cur.url; setImg($('qr'), qrSrc(cur.url)); }
+  else { $('url').textContent = 'No network found. Connect to Wi-Fi, or use No Wi-Fi.'; $('qr').removeAttribute('src'); delete $('qr').dataset.src; }
+  const sel = $('addrSel');
+  sel.hidden = list.length < 2;
+  if (list.length > 1 && sel.dataset.sig !== list.map(a => a.ip).join()) {
+    sel.dataset.sig = list.map(a => a.ip).join();
+    sel.innerHTML = list.map(a => '<option value="' + a.ip + '">' + a.ip + ' · ' + esc(kindLabel(a)) + '</option>').join('');
+  }
+  if (cur) sel.value = cur.ip;
+
+  // PC hotspot.
+  const on = hs && hs.state === 'On';
+  const hip = net.addresses.find(a => a.kind === 'pc-hotspot');
+  $('hsOff').hidden = !!on;
+  $('hsOn').hidden = !on;
+  $('hsStart').disabled = hsBusy;
+  $('hsStart').textContent = hsBusy ? 'Starting…' : 'Start PC hotspot';
+  if (on) {
+    $('hsSsid').textContent = 'Wi-Fi: ' + hs.ssid;
+    $('hsPass').textContent = 'Password: ' + hs.passphrase;
+    setImg($('qrWifi'), qrSrc('WIFI:T:WPA;S:' + hs.ssid + ';P:' + hs.passphrase + ';;'));
+    if (hip) { $('hsUrl').textContent = hip.url; setImg($('qrLink'), qrSrc(hip.url)); }
+    else { $('hsUrl').textContent = 'Getting the hotspot address…'; }
+  }
+  if (!hsBusy && hs && !on) {
+    const m = $('hsMsg');
+    if (hs.supported === false) { m.className = 'msg err'; m.textContent = hs.error || 'This PC can\'t share a hotspot. Use the Phone hotspot tab instead.'; }
+    else if (hs.error) { m.className = 'msg err'; m.textContent = hs.error; }
+    else if (!m.dataset.keep) { m.className = 'msg'; m.textContent = ''; }
+  }
+  if (on) { $('hsMsg').className = 'msg'; $('hsMsg').textContent = (hs.clients || 0) + ' device' + (hs.clients === 1 ? '' : 's') + ' connected'; }
+
+  // Phone hotspot (iPhone or Android, Wi-Fi or USB tethering): recognised by its default address range.
+  const ip = net.addresses.find(a => a.kind === 'phone-hotspot');
+  $('ipOn').hidden = !ip;
+  $('ipMsg').hidden = !!ip;
+  if (ip) { $('ipUrl').textContent = ip.url; $('ipTitle').textContent = 'Connected: ' + ip.via; setImg($('qrIp'), qrSrc(ip.url)); }
+}
+
+async function refreshNet() {
+  try {
+    net = await (await api('/api/network')).json();
+    if (mode === 'offline' && off === 'pc') hs = await (await api('/api/hotspot')).json();
+  } catch {}
+  renderConnect();
+}
+
+function initConnect() {
+  if (initConnect.done) return; initConnect.done = true;
+  $('pair').classList.add('show');
+  $('modeTabs').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; mode = b.dataset.mode; store.set('mode', mode); refreshNet(); });
+  $('offTabs').addEventListener('click', e => { const b = e.target.closest('[data-off]'); if (!b) return; off = b.dataset.off; store.set('off', off); refreshNet(); });
+  $('addrSel').addEventListener('change', async e => { await jpost('/api/network/select', { ip: e.target.value }); refreshNet(); });
+  $('hsStart').onclick = async () => {
+    hsBusy = true; $('hsMsg').dataset.keep = ''; renderConnect();
+    const r = await jpost('/api/hotspot', { action: 'start' });
+    hsBusy = false;
+    if (!r.ok) { $('hsMsg').className = 'msg err'; $('hsMsg').textContent = r.error || 'Could not start the hotspot.'; $('hsMsg').dataset.keep = '1'; }
+    hs = null; await refreshNet();
+  };
+  $('hsStop').onclick = async () => { await jpost('/api/hotspot', { action: 'stop' }); hs = null; await refreshNet(); };
+  $('fwBtn').onclick = async e => {
+    e.preventDefault(); toast('Approve the Windows prompt to continue…');
+    const r = await jpost('/api/firewall');
+    toast(r.ok ? 'Firewall rule is in place' : 'Firewall rule was not added');
+  };
+  refreshNet();
+  setInterval(refreshNet, 4000);
+}
+
+async function loadInfo() {
+  const r = await api('/api/info');
+  if (r.status === 401) { $('status').textContent = 'bad token: rescan QR'; return false; }
+  const info = await r.json();
+  items.clear(); info.items.forEach(i => items.set(i.id, i)); render();
+  // The connection panel (QR codes, hotspot) is only for the PC window.
+  if (isPC) initConnect();
+  return true;
+}
+
+let ws, retry = 500;
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?t=' + TOKEN);
+  ws.onopen = async () => { retry = 500; $('status').textContent = 'connected'; $('status').classList.add('on'); await loadInfo(); };
+  ws.onclose = () => { $('status').textContent = 'reconnecting…'; $('status').classList.remove('on'); setTimeout(connect, retry = Math.min(retry * 1.7, 5000)); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'add') { items.set(m.item.id, m.item); render(); if (!isMine(m.item)) toast('Received from ' + m.item.from); }
+    if (m.type === 'remove') { items.delete(m.id); render(); }
+  };
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && ws.readyState > 1) connect(); });
+connect();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
