@@ -10,13 +10,29 @@ UFTI for iPhone is not on the App Store, so you install it yourself ("sideloadin
 
 > **Why a tool is needed.** Apple only runs apps that are signed. The `.ipa` on the releases page is unsigned, so a sideloading tool signs it with *your* Apple ID while installing it on *your* iPhone.
 >
-> **The 7-day limit.** Apps signed with a free Apple ID stop opening after 7 days. You then sign and install again, which keeps your data, or let AltStore refresh it for you (Option A). A paid Apple Developer account ($99 a year) lifts the limit to one year.
+> **The 7-day limit.** Apps signed with a free Apple ID stop opening after 7 days. You then sign and install again, which keeps your data, or let AltStore refresh it for you (Option B). A paid Apple Developer account ($99 a year) lifts the limit to one year.
 
-Pick **one** option below. Option B is the quickest to try. Option A is better if you plan to keep the app, because it refreshes itself.
+Pick **one** option below. Option A (Sideloadly) is the quickest to try. Option B (AltStore) is better if you plan to keep the app, because it refreshes itself.
 
 ---
 
-## Option A: AltStore (refreshes the app for you)
+## Option A: Sideloadly (one install, quick)
+
+1. Download **Sideloadly** for Windows or macOS from [sideloadly.io](https://sideloadly.io). On Windows, it also needs iTunes from Apple's website (see step 1 of Option B).
+2. Connect the iPhone with the cable and tap **Trust This Computer**.
+3. Open Sideloadly. Your iPhone should appear in the device list.
+4. Drag the UFTI `.ipa` onto the Sideloadly window, or click the IPA icon and pick it.
+5. Type your Apple ID in the box and click **Start**. Enter your password and the verification code if Apple asks. If sign-in fails, try again with an [app-specific password](https://support.apple.com/102654).
+6. Wait for **Done**. UFTI is now on your Home Screen, but it will not open yet.
+7. On the iPhone: **Settings, General, VPN & Device Management**, tap your Apple ID, and tap **Trust**.
+8. Turn on **Developer Mode** (iOS 16 and later): **Settings, Privacy & Security, Developer Mode**, switch it on and restart. If the switch is missing, it appears once an app has been sideloaded, which you just did, so reopen Settings.
+9. Open UFTI.
+
+After 7 days the app stops opening. Repeat steps 3 to 5 with the same file to renew it. Your history and files stay.
+
+---
+
+## Option B: AltStore (refreshes the app for you)
 
 AltStore puts a small helper app on your iPhone. A program on your computer (AltServer) signs apps for it and renews them over Wi-Fi, so you don't have to reinstall every week.
 
@@ -43,22 +59,6 @@ AltStore puts a small helper app on your iPhone. A program on your computer (Alt
 
 ---
 
-## Option B: Sideloadly (one install, quick)
-
-1. Download **Sideloadly** for Windows or macOS from [sideloadly.io](https://sideloadly.io). On Windows, it also needs iTunes from Apple's website (see step 1 of Option A).
-2. Connect the iPhone with the cable and tap **Trust This Computer**.
-3. Open Sideloadly. Your iPhone should appear in the device list.
-4. Drag the UFTI `.ipa` onto the Sideloadly window, or click the IPA icon and pick it.
-5. Type your Apple ID in the box and click **Start**. Enter your password and the verification code if Apple asks. If sign-in fails, try again with an [app-specific password](https://support.apple.com/102654).
-6. Wait for **Done**. UFTI is now on your Home Screen, but it will not open yet.
-7. On the iPhone: **Settings, General, VPN & Device Management**, tap your Apple ID, and tap **Trust**.
-8. Turn on **Developer Mode** (iOS 16 and later): **Settings, Privacy & Security, Developer Mode**, switch it on and restart. If the switch is missing, it appears once an app has been sideloaded, which you just did, so reopen Settings.
-9. Open UFTI.
-
-After 7 days the app stops opening. Repeat steps 3 to 5 with the same file to renew it. Your history and files stay.
-
----
-
 ## Option C: Build it yourself with Xcode (Mac only)
 1. Install Xcode from the Mac App Store and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 2. In Terminal:
@@ -69,7 +69,7 @@ After 7 days the app stops opening. Repeat steps 3 to 5 with the same file to re
    open UFTI.xcodeproj
    ```
 3. In Xcode, click the **UFTI** project, open **Signing & Capabilities**, choose your Apple ID as the **Team**, and change the **Bundle Identifier** to something unique, such as `com.yourname.ufti`.
-4. Connect your iPhone, choose it at the top of the window, and press **Run**. Then do the **Trust** and **Developer Mode** steps from Option B (steps 7 and 8).
+4. Connect your iPhone, choose it at the top of the window, and press **Run**. Then do the **Trust** and **Developer Mode** steps from Option A (steps 7 and 8).
 
 ---
 
@@ -88,7 +88,7 @@ No shared Wi-Fi? Turn on **Settings, Personal Hotspot, Allow Others to Join** on
 |---|---|
 | "Untrusted Developer" when opening the app | **Settings, General, VPN & Device Management**, tap your Apple ID, then **Trust**. |
 | No **Developer Mode** switch in Settings | It shows up only after a sideloaded app is on the iPhone. Install first, then look again. Restart the iPhone if it still is not there. |
-| The app closes at once, or says it can't be verified | The 7 days ran out. Install again (Option A refreshes itself; Option B, repeat the install). |
+| The app closes at once, or says it can't be verified | The 7 days ran out. Install again (Option B refreshes itself; Option A, repeat the install). |
 | The computer does not see the iPhone | Use an original or good cable, unlock the iPhone, tap **Trust This Computer**, and make sure iTunes is from Apple's site, not the Microsoft Store. |
 | AltStore or Sideloadly refuses with an Apple ID error | Try an app-specific password, or a second free Apple ID. Apple limits a free account to 10 new app IDs a week, so wait a few days if you installed many apps. |
 | The other phone can't open the link | Both phones must be on the same Wi-Fi, UFTI must be open on screen, and **Local Network** must be on for UFTI. Some public or guest Wi-Fi blocks device-to-device traffic. Try Personal Hotspot instead. |
