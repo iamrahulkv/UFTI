@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Android 1.0.0
 - **Native Android app (in `android/`).** The same idea as the iPhone app: the phone hosts UFTI and shows a QR code, and a Windows PC, an iPhone, another Android phone or any browser scans it. The app can also scan another UFTI's QR code (Windows, iPhone or Android) and use it in the app, with native Save (to Downloads/UFTI) and Copy. A foreground service keeps it answering in the background. All three apps use the same protocol, so any pairing works in both directions. See [docs/ANDROID-APP.md](docs/ANDROID-APP.md)
 - The shared page now words things for an Android host ("this phone", Wi-Fi hotspot steps) and uses the Android app's native Copy when it shows another device's page
 
