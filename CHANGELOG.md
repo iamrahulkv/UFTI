@@ -1,21 +1,14 @@
 # Changelog
 
 ## 1.2.0
-- Removed the optional HTTPS mode and the optional pairing PIN, and their switches in the PC window. UFTI is plain HTTP again; on an untrusted network, use the PC hotspot mode
-- Kept the paired devices list with Revoke, one-time QR pairing, share keys, rate limiting and the other protections from 1.1.0. The panel is now called **Paired devices and share keys**
-- Smaller install: the certificate library is gone
-
-## 1.1.0
-Security release. No change to how transfers work, and no slower: on the test PC, 1 GiB uploads ran at 656 MB/s before and 718 MB/s after over HTTP.
-- **One-time pairing.** The QR code holds a code that works once and expires in 5 minutes, then becomes a per-device session in an HttpOnly cookie. The address bar no longer carries a secret
-- **Revocable devices.** New **Security and devices** panel lists paired devices and removes any of them instantly
-- **Optional PIN** to pair, shown on the PC; three wrong tries burn the code
-- **Share keys** for the iPhone Shortcut and Android share apps: named, shown once, revocable, can only send files and text
-- **Optional HTTPS** on the same port with a self-signed certificate created on first use (about 375 MB/s over HTTPS in the same test)
-- Live updates now use Server-Sent Events instead of WebSocket (works with self-signed certificates); the `ws` dependency is gone
+Security release. How transfers work is unchanged.
+- **One-time pairing.** The QR code holds a code that works once and expires in 5 minutes, then becomes a session for that one device in an HttpOnly cookie. The address bar no longer carries a secret
+- **Paired devices list with Revoke.** The new **Paired devices and share keys** panel in the PC window lists every paired device and removes any of them instantly
+- **Share keys** for the iPhone Shortcut and Android share apps: named, shown once, revocable, and able to send files and text only
+- Live updates now use Server-Sent Events instead of WebSocket, so the `ws` dependency is gone
 - Rate limiting of failed attempts, cross-site and DNS-rebinding protection, Content Security Policy and other security headers
 - Large transfers are no longer cut off after 5 minutes (Node's default request timeout is off)
-- Existing paired phones must scan the QR code once more; old `?t=` links stop working
+- Existing paired phones must scan the QR code once more, and old `?t=` links stop working
 
 ## 1.0.0
 First release of UFTI (Unified File Transfer Interface): Scan and Send, cross-platform Wi-Fi file transfer via QR.
