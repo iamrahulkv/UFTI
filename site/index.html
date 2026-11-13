@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UFTI: Scan and Send files between Windows and iPhone</title>
+<meta name="description" content="UFTI sends files, photos, videos and text between a Windows PC and an iPhone or Android phone over your own Wi-Fi, or with no Wi-Fi at all. No cloud, no account, nothing to install on the phone.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="UFTI: Scan. Send. Done.">
+<meta property="og:description" content="AirDrop-style file transfer for Windows and iPhone. No cloud, no cable, no account. Free and open source.">
+<meta property="og:image" content="https://iamrahulkv.github.io/UFTI/og.png">
+<meta property="og:url" content="https://iamrahulkv.github.io/UFTI/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#F2F5FB; --card:#FFFFFF; --fg:#10213F; --mute:#5A6B88; --line:#DCE3F0;
+  --navy:#0B2E6B; --on-navy:#FFFFFF; --saffron:#F58220; --saffron-text:#B35508; --green:#138808; --soft:#E8EEFA;
+  --display:'Space Grotesk','Segoe UI',system-ui,sans-serif; --body:'Inter','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#071226; --card:#0F2145; --fg:#EAF0FF; --mute:#9AAAD0; --line:#1F3568;
+  --navy:#0F2145; --on-navy:#EAF0FF; --saffron-text:#FF9A3D; --green:#3FD16A; --soft:#0B1B3A; color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:17px;line-height:1.65}
+a{color:inherit}
+img{max-width:100%;height:auto;display:block}
+.w{max-width:1080px;margin:0 auto;padding-inline:20px}
+h1,h2,h3{font-family:var(--display);line-height:1.12;margin:0;text-wrap:balance}
+h2{font-size:clamp(28px,4.4vw,40px);letter-spacing:-.01em}
+h3{font-size:20px;line-height:1.25}
+p{margin:0}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:13px 22px;border-radius:10px;font-weight:600;text-decoration:none;border:2px solid transparent;font-size:16px}
+.btn.p{background:var(--saffron);color:#0B2E6B}
+.btn.p:hover{filter:brightness(1.07)}
+.btn.s{border-color:currentColor}
+.btn:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--saffron);outline-offset:3px}
+
+/* header + hero: navy band, headline left, both screens right */
+.top{background:var(--navy);color:var(--on-navy);position:relative;overflow:hidden}
+.top::after{content:"";position:absolute;inset:auto 0 0 0;height:8px;background:linear-gradient(90deg,#F58220 0 33.3%,#fff 33.3% 66.6%,#138808 66.6%)}
+nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-family:var(--display);font-weight:700;font-size:22px}
+.brand img{width:38px;height:38px;border-radius:10px}
+nav .links{display:flex;gap:22px;font-size:15px;flex-wrap:wrap}
+nav .links a{text-decoration:none;opacity:.85}
+nav .links a:hover{opacity:1;text-decoration:underline}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding-block:36px 64px}
+.hero h1{font-size:clamp(44px,8vw,84px);letter-spacing:-.02em}
+.hero h1 .s{color:var(--saffron)} .hero h1 .g{color:#3FD16A}
+.hero p.lead{font-size:20px;margin-top:20px;max-width:34em;opacity:.92}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.cta .s{color:var(--on-navy)}
+.fine{font-size:14px;opacity:.75;margin-top:16px}
+.shots{position:relative;display:flex;justify-content:center;min-height:380px}
+.shots img{border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.15)}
+.shots .pc{width:62%;max-width:290px}
+.shots .ph{width:52%;max-width:240px;margin:70px 0 0 -8%}
+
+section{padding-block:72px}
+.kick{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--saffron-text);margin-bottom:10px}
+.sub{color:var(--mute);margin-top:12px;max-width:40em;font-size:18px}
+
+/* problem */
+.prob{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+.prob .big{font-family:var(--display);font-size:clamp(26px,3.6vw,36px);line-height:1.2;font-weight:700}
+.prob p+p{margin-top:16px}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:36px;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 20px;min-width:0}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--navy);color:var(--on-navy);font-family:var(--display);font-weight:700;margin-bottom:14px}
+.steps h3{margin-bottom:6px}
+.steps p{color:var(--mute);font-size:15.5px;line-height:1.55}
+.note{margin-top:18px;color:var(--mute);font-size:15px}
+
+/* feature split blocks */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.split.rev .txt{order:2}
+.split img{border-radius:16px;border:1px solid var(--line);box-shadow:0 12px 36px rgba(7,18,38,.16);width:min(100%,330px);margin-inline:auto}
+.split .txt p{margin-top:14px;color:var(--mute)}
+.split ul{margin:16px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+.split li{padding-left:24px;position:relative}
+.split li::before{content:"";position:absolute;left:0;top:.62em;width:10px;height:10px;border-radius:3px;background:var(--saffron)}
+.band{background:var(--soft)}
+
+/* features grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+.grid div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;min-width:0}
+.grid h3{font-size:18px;margin-bottom:6px}
+.grid p{color:var(--mute);font-size:15.5px;line-height:1.55}
+
+/* faq */
+.faq{margin-top:28px;display:grid;gap:10px;max-width:760px}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0}
+summary{cursor:pointer;padding:16px 18px;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:12px}
+summary::after{content:"+";font-size:22px;line-height:1;color:var(--saffron-text)}
+details[open] summary::after{content:"\2212"}
+summary::-webkit-details-marker{display:none}
+details p{padding:0 18px 18px;color:var(--mute)}
+
+/* download */
+.dl{background:var(--navy);color:var(--on-navy);border-radius:20px;padding:48px 32px;text-align:center}
+.dl p{margin:14px auto 0;max-width:34em;opacity:.9}
+.dl .cta{justify-content:center}
+footer{padding-block:36px 56px;color:var(--mute);font-size:14.5px;text-align:center}
+footer a{color:var(--fg)}
+
+@media (max-width:900px){
+  .hero,.prob,.split{grid-template-columns:1fr}
+  .split.rev .txt{order:0}
+  .steps{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr 1fr}
+  .shots{min-height:0;margin-top:12px}
+  section{padding-block:56px}
+}
+@media (max-width:560px){
+  .steps,.grid{grid-template-columns:1fr}
+  .hero{padding-block:20px 48px}
+  .dl{padding:36px 20px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="w">
+    <nav>
+      <a class="brand" href="#"><img src="logo.svg" alt="">UFTI</a>
+      <div class="links">
+        <a href="#how">How it works</a>
+        <a href="#no-wifi">No Wi-Fi</a>
+        <a href="#safe">Security</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/iamrahulkv/UFTI">GitHub</a>
+      </div>
+    </nav>
+    <div class="hero">
+      <div>
+        <h1>Scan. <span class="s">Send.</span> <span class="g">Done.</span></h1>
+        <p class="lead">Send files, photos, videos and text between your Windows PC and your iPhone or Android phone. No cloud, no cable, no account, and nothing to install on the phone.</p>
+        <div class="cta">
+          <a class="btn p" href="https://github.com/iamrahulkv/UFTI/releases/latest">Download for Windows</a>
+          <a class="btn s" href="#how">See how it works</a>
+        </div>
+        <p class="fine">Free and open source (MIT). Windows 11. Works with iPhone, Android and any phone browser.</p>
+      </div>
+      <div class="shots">
+        <img class="pc" src="screenshot-pc.png" alt="UFTI on the PC, showing the pairing QR code and the list of sent and received files" width="609" height="1048">
+        <img class="ph" src="screenshot-phone.png" alt="UFTI on a phone in dark mode, showing files sent and received" width="472" height="922">
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="w prob">
+    <div class="big">The fastest way from your iPhone to your PC should not be your own inbox.</div>
+    <div>
+      <p>Mac and iPhone users have AirDrop. Windows and iPhone users email photos to themselves, upload them to a cloud drive, hunt for a cable, or send them through a chat app that shrinks them.</p>
+      <p>Apple does not let third-party apps send files to Windows over Bluetooth, so nothing can copy AirDrop exactly. UFTI takes a different route. It uses the one thing every PC and phone already share: a network.</p>
+    </div>
+  </div>
+</section>
+
+<section id="how" class="band">
+  <div class="w">
+    <div class="kick">How it works</div>
+    <h2>From install to first transfer in about a minute</h2>
+    <ol class="steps">
+      <li><h3>Install on your PC</h3><p>Download the Windows installer from the latest release and run it. Allow network access when Windows asks.</p></li>
+      <li><h3>Open UFTI</h3><p>The window shows a QR code. Both devices should be on the same Wi-Fi.</p></li>
+      <li><h3>Scan with your phone</h3><p>Use the Camera app (iPhone) or Google Lens (Android) and open the link. UFTI loads in the phone's browser.</p></li>
+      <li><h3>Send and receive</h3><p>Tap the send area, pick files, or paste text. Items appear on both screens at once. Use Save or Copy on what you receive.</p></li>
+    </ol>
+    <p class="note">You scan once. The phone remembers the pairing until you remove it. If Windows SmartScreen warns you on first run, choose More info, then Run anyway (the installer is not code-signed yet).</p>
+  </div>
+</section>
+
+<section id="no-wifi">
+  <div class="w split">
+    <div class="txt">
+      <div class="kick">No Wi-Fi, no problem</div>
+      <h2>It can make its own network</h2>
+      <p>AirDrop works in a train station or a hotel with bad internet. So does UFTI. Switch the Connect card to No Wi-Fi and pick a hotspot.</p>
+      <ul>
+        <li><b>PC hotspot.</b> One click, and the PC creates a Wi-Fi network. Scan the first QR code to join it and the second to open UFTI.</li>
+        <li><b>Phone hotspot.</b> Turn on Personal Hotspot on an iPhone (or an Android hotspot), connect the PC by Wi-Fi or USB, and UFTI shows the right QR code.</li>
+      </ul>
+      <p>Transfers never use mobile data or the internet.</p>
+    </div>
+    <img src="screenshot-no-wifi.png" alt="UFTI No Wi-Fi mode with two QR codes: one to join the PC hotspot, one to open UFTI" width="609" height="1048" loading="lazy">
+  </div>
+</section>
+
+<section id="safe" class="band">
+  <div class="w split rev">
+    <div class="txt">
+      <div class="kick">Private and under your control</div>
+      <h2>Only devices you paired can get in</h2>
+      <p>Your files go directly between your devices. There is no cloud server, no sign-up and no tracking.</p>
+      <ul>
+        <li>Each QR code works <b>once</b> and expires after five minutes.</li>
+        <li>Every paired phone is listed on the PC. Remove any of them with one tap.</li>
+        <li>Share keys for iPhone Shortcuts and Android share apps can send files and text, and nothing else.</li>
+      </ul>
+      <p>Traffic on a local network is not encrypted, so avoid public Wi-Fi. On a network you do not trust, use the PC hotspot mode.</p>
+    </div>
+    <img src="screenshot-devices.png" alt="The Paired devices list in UFTI with a Revoke button for each device" width="609" height="1062" loading="lazy">
+  </div>
+</section>
+
+<section>
+  <div class="w">
+    <div class="kick">Everything else</div>
+    <h2>Small details that make it pleasant</h2>
+    <div class="grid">
+      <div><h3>Both directions</h3><p>PC to phone and phone to PC, with live progress bars.</p></div>
+      <div><h3>Any file size</h3><p>Files stream straight to disk, so a multi-gigabyte video works.</p></div>
+      <div><h3>Copy without saving</h3><p>Copy a received photo and paste it into a chat or a Word document.</p></div>
+      <div><h3>Text and links</h3><p>Send a URL or a note and copy it with one tap.</p></div>
+      <div><h3>History on both sides</h3><p>All, Sent and Received tabs with times. Clear them whenever you like.</p></div>
+      <div><h3>Share button</h3><p>Add "Send to PC" to the iPhone share sheet with a free iOS Shortcut. Android works with a share app.</p></div>
+      <div><h3>iPhone app</h3><p>Let the iPhone host UFTI, or scan another UFTI's QR code inside the app with no browser.</p></div>
+      <div><h3>Light and dark</h3><p>One tap on the sun or moon button, and it remembers your choice.</p></div>
+      <div><h3>Lives in the tray</h3><p>Close the window and UFTI keeps listening. Start it with Windows if you want.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="band">
+  <div class="w">
+    <div class="kick">Questions</div>
+    <h2>Before you ask</h2>
+    <div class="faq">
+      <details><summary>Is this the same as AirDrop?</summary><p>No. AirDrop uses Bluetooth and Wi-Fi between Apple devices. UFTI needs a shared network or a hotspot and a one-time QR scan, and it works between Windows and phones. For two Apple devices, use AirDrop.</p></details>
+      <details><summary>Does it need the internet?</summary><p>No. Both devices only need to be on the same network. The No Wi-Fi mode creates one for you, and transfers never use mobile data.</p></details>
+      <details><summary>Do I need to install anything on the phone?</summary><p>No. The phone opens UFTI as a web page in its own browser. You can add it to the Home Screen for an app icon.</p></details>
+      <details><summary>Does it work with Android, Mac or iPad?</summary><p>Yes for Android, and any device with a modern browser can open the pairing link, including a Mac, an iPad or another PC. The desktop app itself is for Windows 11.</p></details>
+      <details><summary>Is it safe on public Wi-Fi?</summary><p>Not recommended, because traffic on the local network is not encrypted. Pairing is one-time and you can remove any device, but on a network you do not trust, use the PC hotspot mode.</p></details>
+      <details><summary>Why is there no App Store app?</summary><p>An App Store app needs a paid Apple developer account, and the web page already works with nothing to install. There is an iPhone app you can install yourself with a free Apple ID. The repository has a step-by-step guide.</p></details>
+      <details><summary>Windows says the app is unrecognised. Is it safe?</summary><p>The installer is not code-signed yet, so SmartScreen shows a warning. Choose More info, then Run anyway. The full source code is public on GitHub if you want to check it.</p></details>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="w">
+    <div class="dl">
+      <h2>Stop emailing yourself photos</h2>
+      <p>UFTI is free and open source under the MIT license.</p>
+      <div class="cta">
+        <a class="btn p" href="https://github.com/iamrahulkv/UFTI/releases/latest">Download for Windows</a>
+        <a class="btn s" href="https://github.com/iamrahulkv/UFTI/blob/main/docs/INSTALL-IPHONE.md">Install the iPhone app</a>
+        <a class="btn s" href="https://github.com/iamrahulkv/UFTI">View on GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="w">UFTI, Unified File Transfer Interface · <a href="https://github.com/iamrahulkv/UFTI">Source</a> · <a href="https://github.com/iamrahulkv/UFTI/blob/main/docs/TROUBLESHOOTING.md">Troubleshooting</a> · <a href="https://github.com/iamrahulkv/UFTI/blob/main/SECURITY.md">Security</a> · <a href="https://github.com/iamrahulkv/UFTI/issues/new/choose">Report an issue</a></div>
+</footer>
+</body>
+</html>
