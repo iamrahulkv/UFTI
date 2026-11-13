@@ -32,11 +32,8 @@ cd ios && xcodegen generate && open UFTI.xcodeproj
 ```
 In Xcode choose your Apple ID under Signing & Capabilities, pick your iPhone, and press Run.
 
-## Install it on your iPhone from Windows
-The `.ipa` is unsigned, so it has to be signed with your Apple ID when you install it. A free Apple ID works, but the app then expires after 7 days and must be reinstalled (AltStore can refresh it for you).
-1. Install [AltStore](https://altstore.io) or [Sideloadly](https://sideloadly.io) on the PC (needs iTunes and iCloud from Apple, not the Microsoft Store versions).
-2. Connect the iPhone, open the `.ipa` in the tool, and sign in with your Apple ID.
-3. On the iPhone: Settings, General, VPN & Device Management, trust your Apple ID. Turn on Developer Mode if iOS asks.
+## Install it on your iPhone
+See the step-by-step guide: [INSTALL-IPHONE.md](INSTALL-IPHONE.md). Tagging a commit `ios-vX.Y.Z` makes the workflow publish the `.ipa` as a GitHub release.
 
 ## Use it
 1. Open UFTI on the iPhone. The top of the screen shows the QR code and the address.

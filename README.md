@@ -63,6 +63,9 @@ npm run app      # desktop app
 # or: npm start  # headless server, prints a QR code in the terminal
 ```
 
+### Option 3: UFTI app on your iPhone
+Run UFTI on an iPhone, and let an Android phone (or another iPhone) scan its QR code. The iPhone app is not on the App Store, so you install it yourself in about 15 minutes with a free Apple ID: download `UFTI-iOS-unsigned-x.y.z.ipa` from the [releases page](https://github.com/iamrahulkv/UFTI/releases) (the release named **ios-v…**), then follow the [step-by-step iPhone install guide](docs/INSTALL-IPHONE.md).
+
 ## Use
 1. Open UFTI on the PC. It shows a QR code.
 2. Make sure the phone is on the **same Wi-Fi**, then scan the QR code with the Camera app (or Google Lens on Android) and open the link in the phone's browser. The QR code works once, and a new one appears after each scan.
@@ -81,7 +84,8 @@ The phone only needs the QR scan once. The browser remembers the pairing until y
 - [Using UFTI with Android](docs/ANDROID.md)
 - [Using UFTI without Wi-Fi](docs/NO-WIFI.md)
 - [iPhone Share button shortcut](docs/IPHONE-SHORTCUT.md)
-- [UFTI for iPhone (native app)](docs/IOS.md)
+- [Install UFTI on your iPhone](docs/INSTALL-IPHONE.md)
+- [UFTI for iPhone: how the app is built](docs/IOS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Security and privacy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md)

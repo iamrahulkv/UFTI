@@ -2,11 +2,13 @@ name: iOS
 on:
   workflow_dispatch:
   push:
+    branches: ['**']
     paths: ['ios/**', 'public/**', '.github/workflows/ios.yml']
+    tags: ['ios-v*']
   pull_request:
     paths: ['ios/**', 'public/**']
 permissions:
-  contents: read
+  contents: write
 jobs:
   build-ios:
     runs-on: macos-15
@@ -32,3 +34,20 @@ jobs:
         with:
           name: UFTI-ios-unsigned
           path: ios/UFTI-ios-unsigned.ipa
+      # Pushing a tag such as ios-v1.0.0 publishes the .ipa as a GitHub release.
+      - name: Name the file for the release
+        if: startsWith(github.ref, 'refs/tags/ios-v')
+        run: cp ios/UFTI-ios-unsigned.ipa "ios/UFTI-iOS-unsigned-${GITHUB_REF_NAME#ios-v}.ipa"
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/ios-v')
+        with:
+          name: UFTI for iPhone ${{ github.ref_name }}
+          make_latest: false   # the "latest" release stays the Windows app
+          body: |
+            UFTI for iPhone: the iPhone hosts UFTI and another phone scans its QR code to send and receive files.
+
+            **Download `UFTI-iOS-unsigned-*.ipa` below.** It is unsigned, so install it with AltStore or Sideloadly and your free Apple ID.
+            Step-by-step guide: [docs/INSTALL-IPHONE.md](https://github.com/iamrahulkv/UFTI/blob/main/docs/INSTALL-IPHONE.md)
+
+            Free Apple ID installs expire after 7 days and need refreshing (AltStore does this for you).
+          files: ios/UFTI-iOS-unsigned-*.ipa
