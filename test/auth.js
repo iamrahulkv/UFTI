@@ -1,13 +1,12 @@
-// Unit tests for auth.js (pairing, sessions, share keys, rate limit) and tlsCert.js. No server needed.
+// Unit tests for auth.js (pairing, sessions, share keys, rate limit). No server needed.
 const assert = require('assert');
-const fs = require('fs'), os = require('os'), path = require('path'), crypto = require('crypto');
+const fs = require('fs'), os = require('os'), path = require('path');
 const { createAuth, parseCookies, deviceName, sha } = require('../auth');
-const { ensureCert } = require('../tlsCert');
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ufti-auth-'));
-  let t = 1_000_000, settings = { requirePin: false };
-  const mk = () => createAuth({ dataDir: dir, getSettings: () => settings, now: () => t });
+  let t = 1_000_000;
+  const mk = () => createAuth({ dataDir: dir, now: () => t });
   let auth = mk();
   const req = (cookie, headers = {}) => ({ headers: { ...(cookie ? { cookie: `ufti_session=${cookie}` } : {}), ...headers } });
   const url = q => new URL('http://x/' + (q || ''));
@@ -16,9 +15,9 @@ const { ensureCert } = require('../tlsCert');
   const p1 = auth.currentPairing();
   assert.ok(p1.code.length >= 21, '128-bit code');
   assert.strictEqual(auth.peek(p1.code).ok, true);
-  const s1 = auth.consume(p1.code, '', 'iPhone Safari');
+  const s1 = auth.consume(p1.code, 'iPhone Safari');
   assert.ok(s1.ok && s1.secret, 'first use pairs');
-  assert.strictEqual(auth.consume(p1.code, '', 'x').ok, false, 'code works only once');
+  assert.strictEqual(auth.consume(p1.code, 'x').ok, false, 'code works only once');
   assert.notStrictEqual(auth.currentPairing().code, p1.code, 'a new code appears after use');
 
   // session authenticates, wrong cookie does not
@@ -35,27 +34,11 @@ const { ensureCert } = require('../tlsCert');
   const p3 = auth.currentPairing();
   t += 6 * 60 * 1000;
   assert.strictEqual(auth.peek(p3.code).ok, false, 'code expires after 5 minutes');
+  assert.strictEqual(auth.consume(p3.code, 'x').ok, false, 'expired code cannot pair');
 
-  // PIN: wrong tries burn the code, right one pairs
-  settings = { requirePin: true };
-  const p4 = auth.currentPairing();
-  assert.ok(/^\d{4}$/.test(p4.pin), '4-digit pin');
-  assert.strictEqual(auth.peek(p4.code).needsPin, true);
-  const w1 = auth.consume(p4.code, '0000' === p4.pin ? '1111' : '0000', 'x');
-  assert.ok(!w1.ok && w1.reason === 'pin' && w1.triesLeft === 2);
-  const ok = auth.consume(p4.code, p4.pin, 'Android Chrome');
-  assert.ok(ok.ok, 'right pin pairs');
-  const p5 = auth.currentPairing();
-  for (let i = 0; i < 3; i++) auth.consume(p5.code, p5.pin === '9999' ? '1' : '9999', 'x');
-  assert.strictEqual(auth.peek(p5.code).ok, false, 'three wrong pins burn the code');
-  assert.strictEqual(auth.consume(p5.code, p5.pin, 'x').ok, false, 'even the right pin fails after that');
-  settings = { requirePin: false };
-
-  // boot codes (the PC window signing itself in) skip the pin and work once
-  settings = { requirePin: true };
+  // boot codes (the PC window signing itself in) work once
   const b = auth.bootCode();
-  assert.ok(auth.consume(b, '', 'Electron').ok && !auth.consume(b, '', 'x').ok, 'boot code: once, no pin');
-  settings = { requirePin: false };
+  assert.ok(auth.consume(b, 'Electron').ok && !auth.consume(b, 'x').ok, 'boot code works once');
 
   // share keys: only usable as keys, revocable
   const k = auth.create('key', 'My phone shortcut');
@@ -68,6 +51,13 @@ const { ensureCert } = require('../tlsCert');
   const id = auth.list().find(x => x.kind === 'key').id;
   assert.ok(auth.revoke(id), 'revoke');
   assert.ok(!auth.authenticate(req(null, { 'x-token': k.secret }), url()).session, 'revoked key stops working');
+
+  // revoking a device signs it out
+  const s2 = auth.consume(auth.currentPairing().code, 'Android Chrome');
+  assert.ok(auth.authenticate(req(s2.secret), url()).session);
+  assert.ok(auth.revoke(auth.list().find(x => x.name === 'Android · Chrome').id));
+  assert.ok(!auth.authenticate(req(s2.secret), url()).session, 'revoked device is signed out');
+  assert.strictEqual(auth.revoke('doesnotexist'), null, 'unknown id');
 
   // only hashes are stored on disk
   await new Promise(r => setTimeout(r, 400));
@@ -89,19 +79,9 @@ const { ensureCert } = require('../tlsCert');
   assert.strictEqual(deviceName('Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/120 Mobile Safari/537'), 'Android · Chrome');
   assert.strictEqual(deviceName('Mozilla/5.0 (Windows NT 10.0) Electron/30 Chrome/120'), 'UFTI app (PC)');
   assert.deepStrictEqual(parseCookies('a=1; ufti_session=abc; b=2'), { a: '1', ufti_session: 'abc', b: '2' });
-  const c = auth.cookieHeader('v', true);
-  assert.ok(/HttpOnly/.test(c) && /SameSite=Strict/.test(c) && /; Secure/.test(c) && /Max-Age=/.test(c));
+  const c = auth.cookieHeader('v');
+  assert.ok(/HttpOnly/.test(c) && /SameSite=Strict/.test(c) && /Max-Age=/.test(c));
 
-  // certificate: generated once, reused, names present, EC key
-  const t0 = Date.now();
-  const a = await ensureCert(dir, ['192.168.1.20']);
-  const ms = Date.now() - t0;
-  const b2 = await ensureCert(dir, ['10.9.9.9']);
-  assert.strictEqual(a.fingerprint, b2.fingerprint, 'certificate is reused, not regenerated');
-  const x = new crypto.X509Certificate(a.cert);
-  assert.ok(/IP Address:192\.168\.1\.20/.test(x.subjectAltName) && /DNS:localhost/.test(x.subjectAltName), 'SAN has the addresses');
-  assert.strictEqual(x.publicKey.asymmetricKeyType, 'ec');
-  assert.ok(x.checkIP('127.0.0.1'), 'valid for 127.0.0.1');
-  console.log(`auth test passed (certificate generated in ${ms} ms)`);
+  console.log('auth test passed');
   fs.rmSync(dir, { recursive: true, force: true });
 })().catch(e => { console.error('FAILED:', e.message); process.exitCode = 1; });

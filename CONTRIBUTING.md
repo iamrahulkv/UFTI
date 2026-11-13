@@ -15,9 +15,8 @@ Node.js 18+ is required. The project has no build step: `server.js`, `main.js` a
 ## Project layout
 | Path | What it is |
 |---|---|
-| `server.js` | HTTP/HTTPS backend with live events (Server-Sent Events) |
+| `server.js` | HTTP backend with live events (Server-Sent Events) |
 | `auth.js` | Pairing codes, sessions, share keys, rate limiter |
-| `tlsCert.js` | Self-signed certificate for the optional HTTPS mode |
 | `hotspot.js`, `netkinds.js` | Windows hotspot control, network address kinds |
 | `main.js` | Electron shell (window, tray) |
 | `public/` | The web UI used on PC and phone (single page, no framework) |
@@ -34,7 +33,7 @@ See [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) for the design and API.
 5. Update the README or docs if behaviour changes, and add a line to `CHANGELOG.md`.
 
 ## Good first issues
-Short pairing PIN, mDNS discovery, clipboard sync, dark/light theme toggle, drag-to-reorder, translations.
+mDNS discovery, clipboard sync, drag-to-reorder, translations.
 
 ## Reporting bugs
 Include your Windows and iOS versions, what you expected, what happened, and the output of `npm start` if relevant.

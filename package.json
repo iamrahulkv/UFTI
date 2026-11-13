@@ -1,6 +1,6 @@
 {
   "name": "ufti",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "UFTI (Unified File Transfer Interface): Scan and Send, cross-platform Wi-Fi file transfer via QR",
   "main": "main.js",
   "scripts": {
@@ -25,8 +25,7 @@
   "type": "commonjs",
   "dependencies": {
     "busboy": "^1.6.0",
-    "qrcode": "^1.5.4",
-    "selfsigned": "^5.5.0"
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "electron": "^45.3.1",
@@ -44,8 +43,7 @@
       "package.json",
       "public/**",
       "netkinds.js",
-      "auth.js",
-      "tlsCert.js"
+      "auth.js"
     ],
     "win": {
       "icon": "build/icon.png",

@@ -2,10 +2,8 @@
 
 Web pages cannot add themselves to the iOS share sheet, but an iOS Shortcut can. With one, you can tap Share in Photos, Files, Safari and more, then choose **Send to PC**. It takes about two minutes and is free.
 
-You need a **share key**. In the UFTI window on the PC, open **Security and devices**, type a name such as *My iPhone*, and press **Create key**. Copy the upload address it shows, for example `http://192.168.1.20:8787/api/upload?t=uk_AbC123&device=`. A share key can only send files and text, it is shown once, and you can remove it any time.
+You need a **share key**. In the UFTI window on the PC, open **Paired devices and share keys**, type a name such as *My iPhone*, and press **Create key**. Copy the upload address it shows, for example `http://192.168.1.20:8787/api/upload?t=uk_AbC123&device=`. A share key can only send files and text, it is shown once, and you can remove it any time.
 
-> Shortcuts can't accept a self-signed certificate, so keep these addresses as `http://`. They keep working even when you turn on HTTPS for the browser.
->
 > Tip: give your PC a fixed IP in your router (a "DHCP reservation"), otherwise the shortcut breaks when the IP changes.
 
 ## Shortcut 1: files and photos

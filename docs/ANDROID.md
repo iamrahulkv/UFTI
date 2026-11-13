@@ -34,7 +34,7 @@ UFTI accepts a standard `multipart/form-data` upload, which most Android tools c
 | Body | `multipart/form-data` with the shared file in a field (any name, for example `file`) |
 | Optional text fields | `title`, `text`, `url` become one text item |
 
-Create a share key in the UFTI window: open **Security and devices**, type a name, press **Create key**, and copy the address it shows. A share key can only send files and text, is shown once, and can be removed any time. Use `http://` here: it keeps working even when HTTPS is turned on, because share apps can't accept a self-signed certificate.
+Create a share key in the UFTI window: open **Paired devices and share keys**, type a name, press **Create key**, and copy the address it shows. A share key can only send files and text, is shown once, and can be removed any time.
 
 Apps that can do this and appear in the Share menu include **HTTP Shortcuts** (free, open source) and **Tasker**. Menu names differ between versions, so follow the app's own guide for "receive shared files" and use the request above. Several files in one share are all saved.
 

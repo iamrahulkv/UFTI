@@ -25,13 +25,10 @@
 - **Share-sheet entry.** The web page itself can't appear in Android's Share menu (that needs trusted HTTPS). Use a share app such as HTTP Shortcuts with the upload request in [docs/ANDROID.md](ANDROID.md).
 
 ## "Not paired" on the phone
-The phone isn't paired, or it was removed on the PC. Scan the QR code in the UFTI window with the phone camera. If the PIN is on, type the 4-digit PIN shown there.
+The phone isn't paired, or it was removed on the PC. Scan the QR code in the UFTI window with the phone camera.
 
 ## "Pairing link expired"
-Each QR code works once and expires after 5 minutes. Scan the current one in the UFTI window. If you didn't pair it yourself, open **Security and devices** and remove any device you don't recognise.
-
-## Certificate warning after turning on HTTPS
-That's expected: UFTI's certificate is self-signed. iPhone: Show Details, then visit this website. Android: Advanced, then Proceed. You do it once per phone. Share keys keep using `http://`.
+Each QR code works once and expires after 5 minutes. Scan the current one in the UFTI window. If you didn't pair it yourself, open **Paired devices and share keys** and remove any device you don't recognise.
 
 ## "Too many attempts" (429)
 More than 20 wrong attempts in a minute from one address blocks it for a minute. Wait and try again.

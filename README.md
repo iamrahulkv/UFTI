@@ -22,7 +22,7 @@ Send files, photos, videos and text between your Windows 11 PC and your **iPhone
 
 ## Why UFTI
 - **Private.** Data goes straight from device to device on your local network. No server in the cloud, no sign-up, no tracking.
-- **Secure by design.** One-time QR pairing, a separate revocable session for each device, an optional PIN, and optional HTTPS. See [SECURITY.md](SECURITY.md).
+- **One-time QR pairing.** Each phone you pair gets its own session, listed in the PC window, and you can remove it at any time. See [SECURITY.md](SECURITY.md).
 - **Works with or without Wi-Fi.** Use your home network, or switch to **No Wi-Fi** and let the PC (or the iPhone) create its own hotspot. See [no-Wi-Fi guide](docs/NO-WIFI.md).
 - **iPhone and Android.** The phone side is a web page, so it works in your phone's default browser, whether that's Safari, Chrome, Samsung Internet, Firefox or any other modern browser. See the [Android guide](docs/ANDROID.md).
 - **Scan and send.** Scan a QR code and it opens in the phone's browser. Add it to your Home Screen for an app icon.
@@ -74,7 +74,7 @@ npm run app      # desktop app
 
 On the PC, received files are saved to `%APPDATA%\ufti\received`. Use the tray icon menu, then **Open received folder**.
 
-The phone only needs the QR scan once. The browser remembers the pairing until you remove the device under **Security and devices**.
+The phone only needs the QR scan once. The browser remembers the pairing until you remove the device under **Paired devices and share keys**.
 
 ## Docs
 - [How it works and API reference](docs/HOW-IT-WORKS.md)
@@ -94,13 +94,12 @@ The phone only needs the QR scan once. The browser remembers the pairing until y
 
 **Can I use it with a Mac, an iPad or another PC?** Yes. Any device with a browser can open the pairing link.
 
-**Is it safe on public Wi-Fi?** It is much safer than before: every device pairs with a one-time QR code, nothing secret sits in the address bar, and you can switch on HTTPS and a PIN. On a network you don't trust, turn on HTTPS or use the PC hotspot mode. See [SECURITY.md](SECURITY.md).
+**Is it safe on public Wi-Fi?** Not recommended. Devices pair with a one-time QR code and you can remove any of them, but traffic is not encrypted. On a network you don't trust, use the PC hotspot mode. See [SECURITY.md](SECURITY.md).
 
 **Why isn't there an App Store or Play Store app?** A real iOS app needs a Mac and a paid Apple developer account, and the web page already works on both platforms with nothing to install. Share-sheet integration comes from an iOS Shortcut or an Android share app instead.
 
 ## Roadmap
 - Code-signed Windows installer
-- Optional HTTPS and a short pairing PIN
 - Auto-discovery without scanning (mDNS)
 - Clipboard sync
 

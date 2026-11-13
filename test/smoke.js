@@ -1,8 +1,8 @@
 // End-to-end test: starts the real server on a temp data folder and exercises pairing, sessions, share keys,
-// every API route, live events, HTTPS and the rate limiter. The rate limiter test runs last on purpose.
+// every API route, live events and the rate limiter. The rate limiter test runs last on purpose.
 const { spawn } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path'), assert = require('assert');
-const http = require('http'), https = require('https');
+const http = require('http');
 
 const PORT = 18787;
 const data = fs.mkdtempSync(path.join(os.tmpdir(), 'ufti-'));
@@ -23,15 +23,12 @@ async function pair(url, ua = UA_IPHONE) {
 }
 const call = (cookie, p, o = {}) => fetch(base + p, { ...o, headers: { ...(cookie ? { cookie } : {}), ...(o.headers || {}) } });
 const json = async (cookie, p, body, method = 'POST') => (await call(cookie, p, { method, body: JSON.stringify(body || {}) })).json();
-const form = (cookie, p, fields) => call(cookie, p, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() });
 
 function rawRequest(mod, opts, body) {
   return new Promise((resolve, reject) => {
     const req = mod.request({ host: '127.0.0.1', port: PORT, rejectUnauthorized: false, ...opts }, res => {
-      const sk = res.socket; // read the TLS details now; the socket is detached once the response ends
-      const tls = sk && sk.getProtocol ? { protocol: sk.getProtocol(), san: sk.getPeerCertificate().subjectaltname } : null;
       let text = ''; res.on('data', c => (text += c));
-      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text, tls }));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, text }));
     });
     req.on('error', reject);
     req.end(body);
@@ -58,7 +55,7 @@ function rawRequest(mod, opts, body) {
     // ---- one-time pairing ----
     const pc = await pair(bootUrl, 'Mozilla/5.0 (Windows NT 10.0) Electron/30 Chrome/120');
     assert.strictEqual(pc.status, 303); assert.strictEqual(pc.location, '/', 'redirects to a clean address');
-    assert.ok(/HttpOnly/.test(pc.setCookie) && /SameSite=Strict/.test(pc.setCookie) && !/Secure/.test(pc.setCookie), 'cookie flags');
+    assert.ok(/HttpOnly/.test(pc.setCookie) && /SameSite=Strict/.test(pc.setCookie), 'cookie flags');
     assert.strictEqual((await pair(bootUrl)).status, 403, 'the PC code works only once');
     const C = pc.cookie;
     r = await call(C, '/api/info');
@@ -106,13 +103,13 @@ function rawRequest(mod, opts, body) {
 
     // network and hotspot controls
     const netInfo = await (await call(C, '/api/network')).json();
-    assert.ok(Array.isArray(netInfo.addresses) && netInfo.port === PORT && netInfo.scheme === 'http');
+    assert.ok(Array.isArray(netInfo.addresses) && netInfo.port === PORT);
     assert.strictEqual(typeof (await (await call(C, '/api/hotspot')).json()).state, 'string');
     assert.strictEqual((await call(C, '/api/hotspot', { method: 'POST', body: '{"action":"explode"}' })).status, 400);
     assert.strictEqual((await call(C, '/api/network/select', { method: 'POST', body: '{"ip":"8.8.8.8"}' })).status, 400);
     const lan = Object.values(os.networkInterfaces()).flat().find(i => i && i.family === 'IPv4' && !i.internal);
     if (lan) {
-      for (const [m, p] of [['GET', '/api/network'], ['GET', '/api/pairing'], ['GET', '/api/devices'], ['POST', '/api/hotspot'], ['POST', '/api/firewall'], ['POST', '/api/keys'], ['GET', '/api/security']]) {
+      for (const [m, p] of [['GET', '/api/network'], ['GET', '/api/pairing'], ['GET', '/api/devices'], ['POST', '/api/hotspot'], ['POST', '/api/firewall'], ['POST', '/api/keys']]) {
         const x = await rawRequest(http, { host: lan.address, path: p, method: m, headers: { cookie: C } }, m === 'POST' ? '{}' : undefined);
         assert.strictEqual(x.status, 403, `${m} ${p} must be PC-only`);
       }
@@ -120,7 +117,7 @@ function rawRequest(mod, opts, body) {
 
     // ---- pairing a second device with the code from the PC window ----
     const p1 = await (await call(C, '/api/pairing')).json();
-    assert.ok(p1.code.length >= 21 && p1.pin === null);
+    assert.ok(p1.code.length >= 21);
     const phone = await pair(`${base}/?p=${p1.code}`, UA_ANDROID);
     assert.strictEqual(phone.status, 303); const P = phone.cookie;
     assert.strictEqual((await (await call(P, '/api/info')).json()).me.name, 'Android · Chrome');
@@ -146,24 +143,7 @@ function rawRequest(mod, opts, body) {
     assert.ok(await Promise.race([reader.read().then(x => x.done), sleep(2000).then(() => false)]), 'revoking closes its live stream');
     ac.abort();
 
-    // ---- optional PIN ----
-    assert.strictEqual((await json(C, '/api/security', { requirePin: true })).requirePin, true);
-    let pp = await (await call(C, '/api/pairing')).json();
-    assert.ok(/^\d{4}$/.test(pp.pin));
-    let pg = await pair(`${base}/?p=${pp.code}`);
-    assert.strictEqual(pg.status, 200); assert.ok(/name="pin"/.test(pg.body), 'a PIN is asked for');
-    const wrong = pp.pin === '0000' ? '1111' : '0000';
-    pg = await form(null, '/pair', { code: pp.code, pin: wrong });
-    assert.ok(/Wrong PIN. 2 tries left/.test(await pg.text()));
-    pg = await form(null, '/pair', { code: pp.code, pin: pp.pin });
-    assert.strictEqual(pg.status, 303, 'right PIN pairs'); const withPin = pg.headers.get('set-cookie').split(';')[0];
-    assert.strictEqual((await call(withPin, '/api/info')).status, 200);
-    pp = await (await call(C, '/api/pairing')).json();
-    for (let i = 0; i < 3; i++) await form(null, '/pair', { code: pp.code, pin: wrong });
-    assert.strictEqual((await form(null, '/pair', { code: pp.code, pin: pp.pin })).status, 403, 'three wrong PINs burn the code');
-    await json(C, '/api/security', { requirePin: false });
-
-    // ---- share keys: can only send, revocable ----
+        // ---- share keys: can only send, revocable ----
     const key = await json(C, '/api/keys', { name: 'Test shortcut' });
     assert.ok(key.key.startsWith('uk_'));
     r = await call(null, `/api/upload?t=${key.key}&device=Android`, { method: 'POST', body: 'from a shortcut', headers: { 'x-filename': 'sc.txt' } });
@@ -182,23 +162,6 @@ function rawRequest(mod, opts, body) {
     }
     assert.strictEqual((await call(C, '/api/text', { method: 'POST', body: 'same origin', headers: { origin: base } })).status, 200);
 
-    // ---- optional HTTPS on the same port ----
-    const st = await json(C, '/api/security', { secure: true });
-    assert.ok(st.secure && /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(st.fingerprint), 'HTTPS on, with a fingerprint');
-    assert.strictEqual((await (await call(C, '/api/network')).json()).scheme, 'https', 'QR links switch to https');
-    const tlsInfo = await rawRequest(https, { path: '/api/info', headers: { cookie: C } });
-    assert.strictEqual(tlsInfo.status, 200, 'same session works over HTTPS');
-    assert.ok(/^TLSv1\.[23]$/.test(tlsInfo.tls.protocol), 'modern TLS');
-    assert.ok(/IP Address:127\.0\.0\.1/.test(tlsInfo.tls.san), 'certificate covers the PC');
-    assert.strictEqual((await call(C, '/api/info')).status, 200, 'the PC window keeps working over plain loopback');
-    const pSec = await (await call(C, '/api/pairing')).json();
-    const viaTls = await rawRequest(https, { path: `/?p=${pSec.code}` });
-    assert.strictEqual(viaTls.status, 303); assert.ok(/; Secure/.test(String(viaTls.headers['set-cookie'])), 'cookie is Secure over HTTPS');
-    const up = await rawRequest(https, { path: '/api/upload', method: 'POST', headers: { cookie: C, 'x-filename': 'tls.txt' } }, 'encrypted upload');
-    assert.strictEqual(up.status, 200, 'uploads work over HTTPS');
-    await json(C, '/api/security', { secure: false });
-    assert.strictEqual((await (await call(C, '/api/network')).json()).scheme, 'http');
-
     // ---- rate limit (last: it blocks this address for a minute) ----
     let blocked = null;
     for (let i = 0; i < 30 && !blocked; i++) { const x = await call('ufti_session=wrong', '/api/info'); if (x.status === 429) blocked = x; }
@@ -206,6 +169,6 @@ function rawRequest(mod, opts, body) {
     assert.strictEqual((await call(C, '/api/info')).status, 429, 'the block applies to that address');
 
     console.log('smoke test passed');
-  } catch (e) { console.error('FAILED:', e.message); process.exitCode = 1; }
+  } catch (e) { console.error('FAILED:', e.stack || e.message); process.exitCode = 1; }
   finally { srv.kill(); await sleep(100); fs.rmSync(data, { recursive: true, force: true }); process.exit(process.exitCode || 0); }
 })();

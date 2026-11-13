@@ -1,7 +1,7 @@
 // Authentication for UFTI.
 //
 //  - Pairing: the QR code carries a one-time code (single use, expires in 5 minutes). Scanning it creates a
-//    long-lived session for that device only, held in an HttpOnly cookie. An optional PIN adds a second factor.
+//    long-lived session for that device only, held in an HttpOnly cookie.
 //  - Sessions and share keys are random 128-bit values. Only their SHA-256 hashes are stored on disk, so a leaked
 //    sessions.json can't be used to log in. Each one can be revoked on its own.
 //  - Share keys (kind "key") are for tools that can't use cookies (iOS Shortcuts, Android share apps).
@@ -13,7 +13,6 @@ const crypto = require('crypto');
 const PAIR_TTL_MS = 5 * 60 * 1000;        // how long a pairing code works
 const PAIR_REFRESH_MS = 60 * 1000;        // the PC window gets a fresh code when less than this is left
 const BOOT_TTL_MS = 2 * 60 * 1000;        // codes the PC window uses to sign itself in
-const PIN_TRIES = 3;
 const LIMIT = { window: 60 * 1000, max: 20, block: 60 * 1000 };
 const COOKIE = 'ufti_session';
 const COOKIE_AGE_S = 365 * 24 * 60 * 60;
@@ -43,7 +42,7 @@ function parseCookies(header = '') {
   return out;
 }
 
-function createAuth({ dataDir, getSettings = () => ({}), now = () => Date.now() }) {
+function createAuth({ dataDir, now = () => Date.now() }) {
   const file = path.join(dataDir, 'sessions.json');
   const sessions = new Map(); // hash -> { h, kind: 'device' | 'key', name, created, lastSeen }
 
@@ -101,14 +100,10 @@ function createAuth({ dataDir, getSettings = () => ({}), now = () => Date.now() 
   // ---- one-time pairing codes ----
   let pairing = null;                 // the code shown in the PC window
   const boot = new Map();             // codes the PC window itself uses to sign in (loopback only)
-  const fresh = () => {
-    pairing = { code: secret(), pin: String(crypto.randomInt(0, 10000)).padStart(4, '0'),
-      expires: now() + PAIR_TTL_MS, used: false, tries: 0 };
-    return pairing;
-  };
+  const fresh = () => { pairing = { code: secret(), expires: now() + PAIR_TTL_MS, used: false }; return pairing; };
   function currentPairing() {
-    if (!pairing || pairing.used || pairing.tries >= PIN_TRIES || pairing.expires - now() < PAIR_REFRESH_MS) fresh();
-    return { code: pairing.code, pin: pairing.pin, expires: pairing.expires };
+    if (!pairing || pairing.used || pairing.expires - now() < PAIR_REFRESH_MS) fresh();
+    return { code: pairing.code, expires: pairing.expires };
   }
   function bootCode() {
     const code = secret();
@@ -117,22 +112,16 @@ function createAuth({ dataDir, getSettings = () => ({}), now = () => Date.now() 
   }
   const codeState = code => {
     if (boot.has(code)) return boot.get(code) > now() ? 'boot' : 'expired';
-    if (pairing && same(pairing.code, code || '')) return !pairing.used && pairing.tries < PIN_TRIES && pairing.expires > now() ? 'pair' : 'expired';
+    if (pairing && same(pairing.code, code || '')) return !pairing.used && pairing.expires > now() ? 'pair' : 'expired';
     return 'unknown';
   };
   // Is this code still usable? Does not use it up.
-  const peek = code => { const s = codeState(code); return { ok: s === 'pair' || s === 'boot', kind: s, needsPin: s === 'pair' && !!getSettings().requirePin }; };
+  const peek = code => { const s = codeState(code); return { ok: s === 'pair' || s === 'boot', kind: s }; };
   // Use a code up and create the device session. Boot codes only work for loopback requests (checked by the caller).
-  function consume(code, pin, ua) {
+  function consume(code, ua) {
     const s = codeState(code);
     if (s === 'boot') { boot.delete(code); return { ok: true, ...create('device', deviceName(ua)) }; }
     if (s !== 'pair') return { ok: false, reason: s };
-    if (getSettings().requirePin) {
-      if (!same(pairing.pin, String(pin || ''))) {
-        pairing.tries++;
-        return { ok: false, reason: pairing.tries >= PIN_TRIES ? 'expired' : 'pin', triesLeft: PIN_TRIES - pairing.tries };
-      }
-    }
     pairing.used = true;
     return { ok: true, ...create('device', deviceName(ua)) };
   }
@@ -152,11 +141,10 @@ function createAuth({ dataDir, getSettings = () => ({}), now = () => Date.now() 
     if (fails.size > 1000) for (const [k, v] of fails) if (now() - v.start > LIMIT.window && v.blockedUntil < now()) fails.delete(k);
   }
 
-  const cookieHeader = (value, secure) =>
-    `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_AGE_S}${secure ? '; Secure' : ''}`;
+  const cookieHeader = value => `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_AGE_S}`;
 
   return { create, lookup, list, revoke, authenticate, currentPairing, bootCode, peek, consume,
-    blockedFor, fail, cookieHeader, deviceName, PIN_TRIES };
+    blockedFor, fail, cookieHeader, deviceName };
 }
 
 module.exports = { createAuth, parseCookies, deviceName, COOKIE, sha };

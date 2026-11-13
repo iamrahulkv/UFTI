@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+- Removed the optional HTTPS mode and the optional pairing PIN, and their switches in the PC window. UFTI is plain HTTP again; on an untrusted network, use the PC hotspot mode
+- Kept the paired devices list with Revoke, one-time QR pairing, share keys, rate limiting and the other protections from 1.1.0. The panel is now called **Paired devices and share keys**
+- Smaller install: the certificate library is gone
+
 ## 1.1.0
 Security release. No change to how transfers work, and no slower: on the test PC, 1 GiB uploads ran at 656 MB/s before and 718 MB/s after over HTTP.
 - **One-time pairing.** The QR code holds a code that works once and expires in 5 minutes, then becomes a per-device session in an HttpOnly cookie. The address bar no longer carries a secret
