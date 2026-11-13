@@ -18,5 +18,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            dist/UFTI-Setup-*.exe
-            dist/UFTI-Portable-*.exe
+            dist/UFTI-win-Setup-*.exe
+            dist/UFTI-win-Portable-*.exe

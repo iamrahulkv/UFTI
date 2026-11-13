@@ -49,7 +49,7 @@ Transfers never use mobile data or the internet in either mode. Full steps: [doc
 ## Install
 
 ### Option 1: Windows installer (easiest)
-1. Download `UFTI-Setup-x.y.z.exe` (or the no-install `UFTI-Portable-x.y.z.exe`) from the [latest release](https://github.com/iamrahulkv/UFTI/releases/latest).
+1. Download `UFTI-win-Setup-x.y.z.exe` (or the no-install `UFTI-win-Portable-x.y.z.exe`) from the [latest release](https://github.com/iamrahulkv/UFTI/releases/latest).
 2. Run it. If Windows SmartScreen says "Windows protected your PC", click **More info**, then **Run anyway**. The app is not code-signed yet.
 3. When Windows asks about firewall access, tick **Private and Public networks** and click **Allow**.
 

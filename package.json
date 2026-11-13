@@ -1,6 +1,6 @@
 {
   "name": "ufti",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "UFTI (Unified File Transfer Interface): Scan and Send, cross-platform Wi-Fi file transfer via QR",
   "main": "main.js",
   "scripts": {
@@ -55,13 +55,13 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "artifactName": "UFTI-Setup-${version}.exe"
+      "artifactName": "UFTI-win-Setup-${version}.exe"
     },
     "directories": {
       "output": "dist"
     },
     "portable": {
-      "artifactName": "UFTI-Portable-${version}.exe"
+      "artifactName": "UFTI-win-Portable-${version}.exe"
     }
   },
   "repository": {

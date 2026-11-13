@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.1
+- The Windows downloads now have "win" in their names: `UFTI-win-Setup-x.y.z.exe` and `UFTI-win-Portable-x.y.z.exe`. The app itself is unchanged
+
 ## 1.2.0
 Security release. How transfers work is unchanged.
 - **One-time pairing.** The QR code holds a code that works once and expires in 5 minutes, then becomes a session for that one device in an HttpOnly cookie. The address bar no longer carries a secret
