@@ -21,7 +21,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
       - name: Unit tests (server on the JVM, plus a Node client talking to it)
         working-directory: android
         run: |
