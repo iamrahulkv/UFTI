@@ -42,6 +42,10 @@ const pairUrl = ip => `http://${ip}:${PORT}/?p=${auth.currentPairing().code}`;
 // The PC window signs itself in with its own one-time code, over loopback only.
 const localUrl = () => `http://localhost:${PORT}/?p=${auth.bootCode()}`;
 
+// The desktop app registers a function that copies a file to the system clipboard: (filePath, item) => { as: 'image' | 'file' }.
+let copyHandler = null;
+const setCopyHandler = fn => { copyHandler = fn; };
+
 const isLoopback = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const cleanName = raw => path.basename(String(raw)).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || 'file';
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -248,8 +252,17 @@ async function handler(req, res) {
 
     // PC window only: connection, hotspot, firewall, pairing, paired devices and share keys
     if (['/api/network', '/api/network/select', '/api/hotspot', '/api/firewall', '/api/pairing', '/api/devices', '/api/keys']
-        .includes(p) || p.startsWith('/api/devices/')) {
+        .includes(p) || p.startsWith('/api/devices/') || p.startsWith('/api/copy/')) {
       if (!pcOnly()) return;
+
+      // Put a received file on this PC's clipboard (the desktop app supplies the handler; see main.js).
+      if (req.method === 'POST' && p.startsWith('/api/copy/')) {
+        const item = items.find(i => i.id === p.slice('/api/copy/'.length) && i.kind === 'file');
+        if (!item) return sendJSON(res, 404, { error: 'gone' });
+        if (!copyHandler) return sendJSON(res, 501, { error: 'copy is not available here' });
+        try { return sendJSON(res, 200, { ok: true, ...(await copyHandler(path.join(DIR, `${item.id}__${item.name}`), item)) }); }
+        catch (e) { return sendJSON(res, 500, { error: String(e.message || e) }); }
+      }
 
       if (req.method === 'GET' && p === '/api/network') {
         const pr = auth.currentPairing();
@@ -397,4 +410,4 @@ const ready = (async () => {
   if (process.platform === 'win32' && !process.env.NO_OPEN) require('child_process').exec(`start "" "${local}"`);
 })();
 
-module.exports = { PORT, DIR, lanIPs, stopOwnedHotspot, pairUrl, localUrl, ready };
+module.exports = { PORT, DIR, lanIPs, stopOwnedHotspot, pairUrl, localUrl, ready, setCopyHandler };

@@ -76,6 +76,7 @@ Browsers authenticate with the session cookie. Tools use a share key, as `?t=<ke
 | `GET /api/devices`, `DELETE /api/devices/<id>` **PC** | List paired devices and share keys; remove one |
 | `POST /api/keys` **PC** | `{ "name": "..." }`: create a share key (returned once) |
 | `GET /api/hotspot`, `POST /api/hotspot` **PC** | Windows Mobile Hotspot status, and `{ "action": "start" \| "stop" }` |
+| `POST /api/copy/<id>` **PC** | Copy a received file to the clipboard of the device running UFTI. PNG and JPEG go on as an image, other files as a file. `501` where the host has no clipboard support (for example `npm start`) |
 | `POST /api/firewall` **PC** | Adds a Windows Firewall rule for the app port (shows the admin prompt) |
 
 Examples with a share key from the PC window:

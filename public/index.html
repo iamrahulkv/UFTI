@@ -351,7 +351,7 @@ function render() {
     if (it.kind === 'file') {
       li.innerHTML = `<div class="ic">${icon(it.name)}</div><div class="meta"><div class="name">${esc(it.name)}</div>
         <div class="sub">${tag} · ${fmt(it.size)} · ${ago(it.ts)}</div></div>
-        ${mine ? '' : `<a href="/api/file/${it.id}" download="${esc(it.name)}"><button>Save</button></a>`}
+        ${mine ? '' : `<a href="/api/file/${it.id}" download="${esc(it.name)}"><button>Save</button></a>${canCopyFile(it) ? `<button class="ghost" data-copyfile="${it.id}" title="Copy to the clipboard, then paste it anywhere">Copy</button>` : ''}`}
         <button class="ghost" data-del="${it.id}" title="Delete">✕</button>`;
     } else {
       li.innerHTML = `<div class="ic">💬</div><div class="meta"><div class="name txt">${esc(it.text)}</div>
@@ -385,8 +385,38 @@ $('clearYes').onclick = async () => {
   else toast('Could not clear history');
 };
 
+// ---- Copy a received file to the clipboard (paste it anywhere without saving it) ----
+// On the device that runs UFTI (the PC window or the iPhone app) the app puts it on the system clipboard:
+// images as an image, other files as a file. Other browsers can copy images only, through the browser's clipboard.
+const isImage = n => /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(n);
+const canCopyFile = it => isPC || (isImage(it.name) && !!window.ClipboardItem && !!navigator.clipboard?.write);
+async function toPng(blob) {
+  const bmp = await createImageBitmap(blob);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  return new Promise((ok, no) => c.toBlob(b => b ? ok(b) : no(new Error('encode')), 'image/png'));
+}
+async function copyFile(id) {
+  const it = items.get(id); if (!it) return;
+  if (isPC) {
+    try {
+      const r = await api('/api/copy/' + id, { method: 'POST' });
+      if (r.ok) { const j = await r.json(); return toast(j.as === 'image' ? 'Image copied. Paste it anywhere.' : 'File copied. Paste it into a folder or chat.'); }
+      if (r.status !== 501) return toast('Could not copy. Use Save.');
+    } catch { return toast('Could not copy. Use Save.'); }
+  }
+  if (!isImage(it.name)) return toast('This file type can\'t be copied here. Use Save.');
+  try {
+    // The clipboard write must start inside the tap, so hand it a promise for the image.
+    const png = fetch('/api/file/' + id).then(r => r.blob()).then(toPng);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+    toast('Image copied. Paste it anywhere.');
+  } catch { toast('Could not copy this image. Use Save.'); }
+}
+
 $('list').addEventListener('click', async e => {
-  const del = e.target.closest('[data-del]'), cp = e.target.closest('[data-copy]');
+  const del = e.target.closest('[data-del]'), cp = e.target.closest('[data-copy]'), cf = e.target.closest('[data-copyfile]');
+  if (cf) copyFile(cf.dataset.copyfile);
   if (del) api('/api/item/' + del.dataset.del, { method: 'DELETE' });
   if (cp) {
     const txt = items.get(cp.dataset.copy).text;

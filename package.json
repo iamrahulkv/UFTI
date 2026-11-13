@@ -7,7 +7,7 @@
     "start": "node server.js",
     "app": "electron .",
     "dist": "electron-builder --win portable nsis",
-    "test": "node test/kinds.js && node test/auth.js && node test/smoke.js"
+    "test": "node test/kinds.js && node test/auth.js && node test/copy.js && node test/smoke.js"
   },
   "keywords": [
     "ufti",

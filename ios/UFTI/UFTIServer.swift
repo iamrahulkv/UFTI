@@ -170,7 +170,7 @@ final class UFTIServer: ObservableObject {
 
         // In-app window only: connection, hotspot, firewall, pairing, paired devices and share keys.
         if ["/api/network", "/api/network/select", "/api/hotspot", "/api/firewall", "/api/pairing", "/api/devices", "/api/keys"].contains(p)
-            || p.hasPrefix("/api/devices/") {
+            || p.hasPrefix("/api/devices/") || p.hasPrefix("/api/copy/") {
             guard pcOnly else { return await c.json(403, ["error": "only available in the UFTI app on the iPhone"]) }
             return await handleLocal(req, c, sid: sid)
         }
@@ -314,6 +314,27 @@ final class UFTIServer: ObservableObject {
             return await c.json(200, ["ok": false, "error": UFTIServer.hotspotNote] as [String: Any])
         }
         if req.method == "POST", p == "/api/firewall" { return await c.json(200, ["ok": true]) }
+        // Copy a received file to the iPhone clipboard: images as an image, anything else as a file.
+        if req.method == "POST", p.hasPrefix("/api/copy/") {
+            let id = String(p.dropFirst("/api/copy/".count))
+            guard isHexID(id), let item = store.find(id), item.kind == "file" else { return await c.json(404, ["error": "gone"]) }
+            let url = store.fileURL(item)
+            let kind: String? = await MainActor.run {
+                let board = UIPasteboard.general
+                if ["png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "tiff"].contains(url.pathExtension.lowercased()),
+                   let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                    board.image = image
+                    return "image"
+                }
+                if let provider = NSItemProvider(contentsOf: url) {
+                    board.setItemProviders([provider], localOnly: false, expirationDate: nil)
+                    return "file"
+                }
+                return nil
+            }
+            guard let kind = kind else { return await c.json(500, ["error": "could not copy this file"]) }
+            return await c.json(200, ["ok": true, "as": kind])
+        }
         await c.json(404, ["error": "unknown route"])
     }
 }

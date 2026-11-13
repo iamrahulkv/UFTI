@@ -1,6 +1,7 @@
 // UFTI native Windows app: wraps the local server in a desktop window + tray icon.
-const { app, BrowserWindow, Tray, Menu, shell, clipboard, nativeImage, nativeTheme } = require('electron');
+const { app, BrowserWindow, Tray, Menu, shell, clipboard, nativeImage, nativeTheme, ClipboardItem } = require('electron');
 const path = require('path');
+const { execFile } = require('child_process');
 
 process.env.NO_OPEN = '1';
 process.env.UFTI_DATA = app.getPath('userData');
@@ -9,6 +10,25 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 let win, tray, quitting = false, srv;
 const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png'));
+
+// The Copy button on a received file. PNG and JPEG go on the clipboard as an image, so they paste straight into
+// Paint, Word, chat apps and so on. Anything else is copied as a file, so it pastes into Explorer or an email.
+async function copyToClipboard(file) {
+  if (/\.(png|jpe?g)$/i.test(file)) {
+    const img = nativeImage.createFromPath(file);
+    if (!img.isEmpty()) {
+      // Electron 45's clipboard takes web-style items, and image items must be PNG (a JPEG is converted).
+      await clipboard.write([new ClipboardItem({ 'image/png': new Blob([img.toPNG()], { type: 'image/png' }) })]);
+      return { as: 'image' };
+    }
+  }
+  if (process.platform !== 'win32') throw new Error('copying files is only supported on Windows');
+  return new Promise((resolve, reject) => {
+    // The path goes in through the environment, never into the command text.
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Set-Clipboard -LiteralPath $env:UFTI_FILE'],
+      { env: { ...process.env, UFTI_FILE: file }, windowsHide: true }, err => err ? reject(err) : resolve({ as: 'file' }));
+  });
+}
 
 function phoneUrl() {
   const ip = srv.lanIPs()[0];
@@ -53,6 +73,7 @@ function createTray() {
 app.on('second-instance', showWindow);
 app.whenReady().then(async () => {
   srv = require('./server.js'); // starts listening on 0.0.0.0:PORT
+  srv.setCopyHandler(copyToClipboard);
   await srv.ready;
   createWindow();
   createTray();

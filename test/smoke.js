@@ -109,7 +109,7 @@ function rawRequest(mod, opts, body) {
     assert.strictEqual((await call(C, '/api/network/select', { method: 'POST', body: '{"ip":"8.8.8.8"}' })).status, 400);
     const lan = Object.values(os.networkInterfaces()).flat().find(i => i && i.family === 'IPv4' && !i.internal);
     if (lan) {
-      for (const [m, p] of [['GET', '/api/network'], ['GET', '/api/pairing'], ['GET', '/api/devices'], ['POST', '/api/hotspot'], ['POST', '/api/firewall'], ['POST', '/api/keys']]) {
+      for (const [m, p] of [['GET', '/api/network'], ['GET', '/api/pairing'], ['GET', '/api/devices'], ['POST', '/api/hotspot'], ['POST', '/api/firewall'], ['POST', '/api/keys'], ['POST', '/api/copy/00000000']]) {
         const x = await rawRequest(http, { host: lan.address, path: p, method: m, headers: { cookie: C } }, m === 'POST' ? '{}' : undefined);
         assert.strictEqual(x.status, 403, `${m} ${p} must be PC-only`);
       }

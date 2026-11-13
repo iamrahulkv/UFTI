@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Copy button for received files**, next to Save, in the Windows app and the iPhone app. Images go on the clipboard as an image so they paste straight into a chat or document without being saved. Other files are copied as files (Windows: paste into Explorer or an email)
 - **Native iPhone app (in `ios/`).** The iPhone hosts UFTI, shows the same screen as the Windows app, and an Android phone (or any browser) scans its QR code to send and receive files. See [docs/IOS.md](docs/IOS.md)
 
 ## 1.2.1

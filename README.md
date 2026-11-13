@@ -29,6 +29,7 @@ Send files, photos, videos and text between your Windows 11 PC and your **iPhone
 - **Both directions.** PC to iPhone and iPhone to PC.
 - **History on both sides.** See everything you sent and received in All / Sent / Received tabs, with times. Clear it any time.
 - **Any size.** Files stream straight to disk, with progress bars. A multi-GB video works.
+- **Copy without saving.** Every received file has a **Copy** button next to **Save**. Copy a photo and paste it straight into a chat, Word or Paint, with nothing saved to disk. Other files paste as files. Works the same on the PC and in the iPhone app.
 - **Text and links too.** Share a URL or a note, with one-tap copy.
 - **Share button support.** Add a "Send to PC" entry to the share sheet: with a free iOS Shortcut on iPhone ([guide](docs/IPHONE-SHORTCUT.md)), or a share app such as HTTP Shortcuts on Android ([guide](docs/ANDROID.md)).
 - **Compact, with light and dark themes.** A small, tidy interface that fits on one phone screen. Switch themes with the sun/moon button; it remembers your choice.
