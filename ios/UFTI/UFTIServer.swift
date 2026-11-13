@@ -94,7 +94,7 @@ final class UFTIServer: ObservableObject {
     }
 
     private static let uriSafe = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-    private static let mime =["html": "text/html; charset=utf-8", "js": "text/javascript", "css": "text/css",
+    private static let mime = ["html": "text/html; charset=utf-8", "js": "text/javascript", "css": "text/css",
                                "json": "application/json", "webmanifest": "application/manifest+json",
                                "svg": "image/svg+xml", "png": "image/png"]
 
