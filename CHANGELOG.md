@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- **Native iPhone app (in `ios/`).** The iPhone hosts UFTI, shows the same screen as the Windows app, and an Android phone (or any browser) scans its QR code to send and receive files. See [docs/IOS.md](docs/IOS.md)
+
 ## 1.2.1
 - The Windows downloads now have "win" in their names: `UFTI-win-Setup-x.y.z.exe` and `UFTI-win-Portable-x.y.z.exe`. The app itself is unchanged
 

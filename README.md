@@ -81,6 +81,7 @@ The phone only needs the QR scan once. The browser remembers the pairing until y
 - [Using UFTI with Android](docs/ANDROID.md)
 - [Using UFTI without Wi-Fi](docs/NO-WIFI.md)
 - [iPhone Share button shortcut](docs/IPHONE-SHORTCUT.md)
+- [UFTI for iPhone (native app)](docs/IOS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Security and privacy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md) and [changelog](CHANGELOG.md)

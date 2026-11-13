@@ -3,3 +3,8 @@ dist/
 received/
 .token
 *.log
+ios/UFTI.xcodeproj/
+ios/build/
+ios/Payload/
+ios/*.ipa
+.DS_Store
