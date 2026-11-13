@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UFTI: Scan and Send files between Windows and iPhone</title>
-<meta name="description" content="UFTI sends files, photos, videos and text between a Windows PC and an iPhone or Android phone over your own Wi-Fi, or with no Wi-Fi at all. No cloud, no account, nothing to install on the phone.">
+<title>UFTI: Scan and Send files between Windows, iPhone and Android</title>
+<meta name="description" content="UFTI sends files, photos, videos and text between a Windows PC, an iPhone and an Android phone over your own Wi-Fi, or with no Wi-Fi at all. Apps for Windows, iPhone and Android, or just a browser. No cloud, no account.">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="UFTI: Scan. Send. Done.">
-<meta property="og:description" content="AirDrop-style file transfer for Windows and iPhone. No cloud, no cable, no account. Free and open source.">
+<meta property="og:description" content="AirDrop-style file transfer for Windows, iPhone and Android. No cloud, no cable, no account. Free and open source.">
 <meta property="og:image" content="https://iamrahulkv.github.io/UFTI/og.png">
 <meta property="og:url" content="https://iamrahulkv.github.io/UFTI/">
 <meta name="twitter:card" content="summary_large_image">
@@ -134,6 +134,7 @@ footer a{color:var(--fg)}
       <a class="brand" href="#"><img src="logo.svg" alt="">UFTI</a>
       <div class="links">
         <a href="#how">How it works</a>
+        <a href="#apps">Apps</a>
         <a href="#no-wifi">No Wi-Fi</a>
         <a href="#safe">Security</a>
         <a href="#faq">FAQ</a>
@@ -143,12 +144,13 @@ footer a{color:var(--fg)}
     <div class="hero">
       <div>
         <h1>Scan. <span class="s">Send.</span> <span class="g">Done.</span></h1>
-        <p class="lead">Send files, photos, videos and text between your Windows PC and your iPhone or Android phone. No cloud, no cable, no account, and nothing to install on the phone.</p>
+        <p class="lead">Send files, photos, videos and text between your Windows PC, your iPhone and your Android phone. No cloud, no cable, no account. Use the apps, or just a phone browser.</p>
         <div class="cta">
           <a class="btn p" href="https://github.com/iamrahulkv/UFTI/releases/latest">Download for Windows</a>
-          <a class="btn s" href="#how">See how it works</a>
+          <a class="btn s" href="https://github.com/iamrahulkv/UFTI/releases/tag/android-v1.0.0">Get the Android app</a>
+          <a class="btn s" href="#apps">All apps</a>
         </div>
-        <p class="fine">Free and open source (MIT). Windows 11. Works with iPhone, Android and any phone browser.</p>
+        <p class="fine">Free and open source (MIT). Apps for Windows 11, Android and iPhone. Any phone browser works too.</p>
       </div>
       <div class="shots">
         <img class="pc" src="screenshot-pc.png" alt="UFTI on the PC, showing the pairing QR code and the list of sent and received files" width="609" height="1048">
@@ -183,6 +185,20 @@ footer a{color:var(--fg)}
   </div>
 </section>
 
+<section id="apps">
+  <div class="w">
+    <div class="kick">Apps</div>
+    <h2>One protocol, three apps, every pairing</h2>
+    <p>Any UFTI app can show the QR code and any other can scan it, in both directions. The phone apps can also host, so you can send phone to phone with no PC at all.</p>
+    <div class="grid">
+      <div><h3>Windows</h3><p>The desktop app with a tray icon, hotspot and firewall controls. <a href="https://github.com/iamrahulkv/UFTI/releases/latest">Download the installer</a>.</p></div>
+      <div><h3>Android</h3><p>Hosts UFTI, scans other UFTI QR codes in the app, saves to Downloads, copies to the clipboard and keeps running in the background. <a href="https://github.com/iamrahulkv/UFTI/releases/tag/android-v1.0.0">Download the APK</a> and <a href="https://github.com/iamrahulkv/UFTI/blob/main/docs/ANDROID-APP.md">read the guide</a>.</p></div>
+      <div><h3>iPhone</h3><p>Hosts UFTI and scans other UFTI QR codes inside the app, with no browser. Installs with a free Apple ID. <a href="https://github.com/iamrahulkv/UFTI/blob/main/docs/INSTALL-IPHONE.md">Install guide</a>.</p></div>
+    </div>
+    <p class="note">No app on the phone? The browser works with everything: scan the QR code with the camera and open the link.</p>
+  </div>
+</section>
+
 <section id="no-wifi">
   <div class="w split">
     <div class="txt">
@@ -191,7 +207,7 @@ footer a{color:var(--fg)}
       <p>AirDrop works in a train station or a hotel with bad internet. So does UFTI. Switch the Connect card to No Wi-Fi and pick a hotspot.</p>
       <ul>
         <li><b>PC hotspot.</b> One click, and the PC creates a Wi-Fi network. Scan the first QR code to join it and the second to open UFTI.</li>
-        <li><b>Phone hotspot.</b> Turn on Personal Hotspot on an iPhone (or an Android hotspot), connect the PC by Wi-Fi or USB, and UFTI shows the right QR code.</li>
+        <li><b>Phone hotspot.</b> Turn on Personal Hotspot on an iPhone (or the Wi-Fi hotspot on an Android phone), connect the other device by Wi-Fi or USB, and UFTI shows the right QR code.</li>
       </ul>
       <p>Transfers never use mobile data or the internet.</p>
     </div>
@@ -227,7 +243,7 @@ footer a{color:var(--fg)}
       <div><h3>Text and links</h3><p>Send a URL or a note and copy it with one tap.</p></div>
       <div><h3>History on both sides</h3><p>All, Sent and Received tabs with times. Clear them whenever you like.</p></div>
       <div><h3>Share button</h3><p>Add "Send to PC" to the iPhone share sheet with a free iOS Shortcut. Android works with a share app.</p></div>
-      <div><h3>iPhone app</h3><p>Let the iPhone host UFTI, or scan another UFTI's QR code inside the app with no browser.</p></div>
+      <div><h3>iPhone and Android apps</h3><p>Let the phone host UFTI, or scan another UFTI's QR code inside the app with no browser.</p></div>
       <div><h3>Light and dark</h3><p>One tap on the sun or moon button, and it remembers your choice.</p></div>
       <div><h3>Lives in the tray</h3><p>Close the window and UFTI keeps listening. Start it with Windows if you want.</p></div>
     </div>
@@ -242,9 +258,10 @@ footer a{color:var(--fg)}
       <details><summary>Is this the same as AirDrop?</summary><p>No. AirDrop uses Bluetooth and Wi-Fi between Apple devices. UFTI needs a shared network or a hotspot and a one-time QR scan, and it works between Windows and phones. For two Apple devices, use AirDrop.</p></details>
       <details><summary>Does it need the internet?</summary><p>No. Both devices only need to be on the same network. The No Wi-Fi mode creates one for you, and transfers never use mobile data.</p></details>
       <details><summary>Do I need to install anything on the phone?</summary><p>No. The phone opens UFTI as a web page in its own browser. You can add it to the Home Screen for an app icon.</p></details>
-      <details><summary>Does it work with Android, Mac or iPad?</summary><p>Yes for Android, and any device with a modern browser can open the pairing link, including a Mac, an iPad or another PC. The desktop app itself is for Windows 11.</p></details>
+      <details><summary>Does it work with Android, Mac or iPad?</summary><p>Yes. There is a native Android app, and any device with a modern browser can open the pairing link, including a Mac, an iPad or another PC. The desktop app itself is for Windows 11.</p></details>
+      <details><summary>Can an Android phone and an iPhone send files to each other?</summary><p>Yes, with no PC involved. Open UFTI on one phone, and scan its QR code from the other phone's UFTI app or its camera. Both phone apps speak the same protocol as the Windows app.</p></details>
       <details><summary>Is it safe on public Wi-Fi?</summary><p>Not recommended, because traffic on the local network is not encrypted. Pairing is one-time and you can remove any device, but on a network you do not trust, use the PC hotspot mode.</p></details>
-      <details><summary>Why is there no App Store app?</summary><p>An App Store app needs a paid Apple developer account, and the web page already works with nothing to install. There is an iPhone app you can install yourself with a free Apple ID. The repository has a step-by-step guide.</p></details>
+      <details><summary>Why is there no App Store or Play Store app?</summary><p>The stores need paid developer accounts, and the web page already works with nothing to install. The iPhone app installs with a free Apple ID, and the Android app is an APK you open on the phone. The repository has a step-by-step guide for each.</p></details>
       <details><summary>Windows says the app is unrecognised. Is it safe?</summary><p>The installer is not code-signed yet, so SmartScreen shows a warning. Choose More info, then Run anyway. The full source code is public on GitHub if you want to check it.</p></details>
     </div>
   </div>
@@ -257,6 +274,7 @@ footer a{color:var(--fg)}
       <p>UFTI is free and open source under the MIT license.</p>
       <div class="cta">
         <a class="btn p" href="https://github.com/iamrahulkv/UFTI/releases/latest">Download for Windows</a>
+        <a class="btn s" href="https://github.com/iamrahulkv/UFTI/releases/tag/android-v1.0.0">Get the Android app</a>
         <a class="btn s" href="https://github.com/iamrahulkv/UFTI/blob/main/docs/INSTALL-IPHONE.md">Install the iPhone app</a>
         <a class="btn s" href="https://github.com/iamrahulkv/UFTI">View on GitHub</a>
       </div>
