@@ -174,7 +174,7 @@
 
   <section id="notPaired" class="card" hidden>
     <h2>Not paired yet</h2>
-    <p class="hint">This device isn't paired with the PC, or it was removed. Scan the QR code in the UFTI window on the PC with this phone's camera to pair it.</p>
+    <p class="hint">This device isn't paired, or it was removed. Scan the QR code shown in the UFTI app (on the PC or the iPhone) with this phone's camera to pair it.</p>
   </section>
 
   <section id="pair" class="card">
@@ -273,7 +273,7 @@
 <dialog id="clearDlg">
   <h3>Clear history?</h3>
   <p id="clearMsg"></p>
-  <label><input type="checkbox" id="clearFiles"> <span>Also delete the saved files from the PC</span></label>
+  <label><input type="checkbox" id="clearFiles"> <span id="clearFilesText">Also delete the saved files from this device</span></label>
   <div class="row end">
     <button class="ghost" id="clearNo">Cancel</button>
     <button class="danger" id="clearYes">Clear</button>
@@ -300,6 +300,7 @@ const store = {
 const ua = navigator.userAgent;
 // Set by the iPhone app's server. The Windows app serves this page without it.
 const HOST_IOS = window.UFTI_HOST === 'ios';
+let HOSTNAME = ''; // name of the device that stores the files, from /api/info
 const DEVICE = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows PC' : /Mac/.test(ua) ? 'Mac' : 'Device';
 const $ = id => document.getElementById(id);
 const items = new Map();
@@ -374,6 +375,8 @@ $('clearBtn').onclick = () => {
   const what = tab === 'all' ? 'all transfers' : tab === 'sent' ? 'everything you sent' : 'everything you received';
   $('clearMsg').textContent = `This removes ${what} (${arr.length} item${arr.length === 1 ? '' : 's'}) from the history on every connected device.`;
   $('clearFiles').checked = false;
+  // The saved files live on the device that runs UFTI: say "this PC" or "this iPhone" there, and name that device elsewhere.
+  $('clearFilesText').textContent = 'Also delete the saved files from ' + (isPC ? (HOST_IOS ? 'this iPhone' : 'this PC') : (HOSTNAME || 'the other device'));
   $('clearFiles').closest('label').style.display = files ? 'flex' : 'none';
   $('clearDlg').showModal();
 };
@@ -596,9 +599,6 @@ function applyIosHost() {
   $('ipMsg').textContent = 'Waiting for Personal Hotspot…';
   document.querySelectorAll('#sec p.hint.small')[1].textContent =
     'For an Android share app. A key can only send files and text, and can be revoked any time.';
-  document.querySelector('#clearFiles + span').textContent = 'Also delete the saved files from this iPhone';
-  document.querySelector('#notPaired .hint').textContent =
-    'This device isn\'t paired with the iPhone, or it was removed. Scan the QR code in the UFTI app on the iPhone with this phone\'s camera to pair it.';
 }
 
 function initConnect() {
@@ -680,6 +680,7 @@ async function loadInfo() {
   document.querySelector('main').classList.remove('unpaired');
   $('notPaired').hidden = true;
   const info = await r.json();
+  HOSTNAME = info.host || '';
   items.clear(); info.items.forEach(i => items.set(i.id, i)); render();
   // The connection panel (QR codes, hotspot) is only for the PC window.
   if (isPC) initConnect();

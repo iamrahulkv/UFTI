@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- The **Clear history** box no longer says "PC" on phones. It says "this PC" or "this iPhone" on the device that runs UFTI, and names that device (for example the PC's name) on any other device. The "not paired" message is reworded the same way
+
 ## 1.3.1
 - **Copy for received images in phone browsers.** Browsers block the clipboard on plain `http://` pages, which is what a QR link on your Wi-Fi is, so Copy was hidden there. Images now get a Copy button in phone browsers too, using the older copy method (the image is prepared as soon as it arrives). Other file types still need Save. The iPhone app's own Copy is more reliable
 - The iPhone app adds its own Copy button when it is connected to another device, so Copy works even with older Windows versions
