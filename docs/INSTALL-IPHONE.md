@@ -79,6 +79,8 @@ After 7 days the app stops opening. Repeat steps 3 to 5 with the same file to re
 3. On the other phone (Android or iPhone), make sure it is on the **same Wi-Fi**, scan the QR code with the camera, and open the link.
 4. Send files and text from either side. Received files are in the **Files** app under **On My iPhone, UFTI, received**. Tap **Save** on an item to open the iPhone share sheet (Photos, Files, AirDrop).
 
+To connect to a PC (or another phone) from inside the app instead, tap **Scan QR** at the top, allow the camera, and scan the QR code that UFTI shows there. You can still scan with the Camera app and use the browser any time.
+
 No shared Wi-Fi? Turn on **Settings, Personal Hotspot, Allow Others to Join** on the iPhone, join it from the other phone, then open the **No Wi-Fi** tab in UFTI.
 
 ## Troubleshooting

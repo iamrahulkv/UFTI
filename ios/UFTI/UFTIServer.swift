@@ -319,19 +319,7 @@ final class UFTIServer: ObservableObject {
             let id = String(p.dropFirst("/api/copy/".count))
             guard isHexID(id), let item = store.find(id), item.kind == "file" else { return await c.json(404, ["error": "gone"]) }
             let url = store.fileURL(item)
-            let kind: String? = await MainActor.run {
-                let board = UIPasteboard.general
-                if ["png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "heif", "tiff"].contains(url.pathExtension.lowercased()),
-                   let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-                    board.image = image
-                    return "image"
-                }
-                if let provider = NSItemProvider(contentsOf: url) {
-                    board.setItemProviders([provider], localOnly: false, expirationDate: nil)
-                    return "file"
-                }
-                return nil
-            }
+            let kind: String? = await MainActor.run { copyToPasteboard(url) }
             guard let kind = kind else { return await c.json(500, ["error": "could not copy this file"]) }
             return await c.json(200, ["ok": true, "as": kind])
         }

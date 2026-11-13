@@ -43,8 +43,8 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: UFTI shares files with phones on your Wi-Fi.
-        # The file picker inside the page offers "Take Photo or Video"; iOS needs these strings for it.
-        NSCameraUsageDescription: Take a photo or video to send.
+        # The camera scans the QR code of another UFTI, and the page's file picker offers "Take Photo or Video".
+        NSCameraUsageDescription: Scan a UFTI QR code, or take a photo or video to send.
         NSMicrophoneUsageDescription: Record video with sound to send.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

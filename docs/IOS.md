@@ -19,7 +19,10 @@ The iPhone app is the host, the way the Windows app is. It shows the same screen
 | `UFTI/Auth.swift` | `auth.js`: one-time pairing, per-device sessions, share keys, rate limiting |
 | `UFTI/Store.swift` | history and the received files |
 | `UFTI/Network.swift` | `netkinds.js`, plus the QR image |
-| `UFTI/UFTIApp.swift` | the app shell: a web view signed in as "This iPhone" |
+| `UFTI/UFTIApp.swift` | the app shell, the connection state and the top bar |
+| `UFTI/PageView.swift` | the web view, plus native download, Save and Copy when connected to another device |
+| `UFTI/Scanner.swift` | the camera QR scanner |
+| `UFTI/Helpers.swift` | which scanned links are accepted, and the clipboard helper |
 | `project.yml` | [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec; `public/` is bundled unchanged |
 
 ## Build it
@@ -39,6 +42,17 @@ See the step-by-step guide: [INSTALL-IPHONE.md](INSTALL-IPHONE.md). Tagging a co
 1. Open UFTI on the iPhone. The top of the screen shows the QR code and the address.
 2. On the Android phone, scan the QR code with the camera and open the link. Both phones must be on the same Wi-Fi, or the Android phone must be joined to the iPhone's Personal Hotspot.
 3. Send files and text from either side. Received files are kept in the Files app under **On My iPhone, UFTI, received**. Tap **Save** on an item to open the iOS share sheet (Save to Photos, Save to Files, AirDrop).
+
+## Scan a QR code inside the app (no browser)
+The iPhone app can be a client as well as a host. Tap **Scan QR** at the top and point the camera at the QR code shown by UFTI on a Windows PC (or on another phone running the UFTI app). The app pairs with it and shows that device's UFTI page inside the app, so you can send and receive without opening Safari.
+
+- **Send:** tap the send area and pick photos or files, as in the browser.
+- **Save:** downloads the file inside the app, then opens the iOS share sheet (Save to Files, Photos, AirDrop).
+- **Copy:** puts the file on the iPhone clipboard (images as an image). Needs the other device to run a UFTI version that has the in-app Copy button; older Windows versions show Save only.
+- **Reconnect and Disconnect:** the app remembers the last device. **Reconnect** opens it again without a new scan, unless it was removed on that device. **Disconnect** goes back to this iPhone's own screen, which keeps sharing in the meantime.
+- Only UFTI links on a private network address (like `192.168.x.x`) are accepted, so a QR code from anywhere else can't send the app to a website.
+
+The browser way always works too: scan with the Camera app and open the link in Safari or Chrome.
 
 ## Limits to know about
 - **Keep the app open.** iOS suspends apps in the background, so the server only answers while UFTI is on screen. UFTI keeps the screen awake while it is open.

@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 
 @main
 struct UFTIApp: App {
@@ -8,31 +7,67 @@ struct UFTIApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                Color(.systemBackground).ignoresSafeArea()
-                if let err = model.server.error {
-                    VStack(spacing: 10) {
-                        Text("UFTI can't start its server").font(.headline)
-                        Text(err).font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
-                        Button("Try again") { model.server.start() }
-                    }.padding()
-                } else {
-                    WebView(server: model.server)
-                }
-            }
-            .onChange(of: phase) { model.phaseChanged($0) }
+            RootView(model: model, server: model.server)
+                .onChange(of: phase) { model.phaseChanged($0) }
         }
     }
 }
 
-/// Owns the server. It runs while the app is on screen; iOS suspends background apps, so transfers pause
-/// when you leave the app and the screen is kept awake while UFTI is open.
+/// Owns the server and the connection state. The iPhone can do two things at once:
+///  - host: show its own QR code so other devices can connect to it (the server below), and
+///  - client: scan another UFTI's QR code and use that one inside the app (`remoteBase` is set).
+/// The server runs while the app is on screen; iOS suspends background apps, so transfers pause
+/// when you leave the app, and the screen is kept awake while UFTI is open.
 @MainActor
 final class AppModel: ObservableObject {
     let server = UFTIServer()
-    private var bgTask: UIBackgroundTaskIdentifier = .invalid
 
-    init() { server.start() }
+    @Published var remoteBase: URL?     // the other device we are connected to, e.g. http://192.168.1.20:8787/
+    @Published var remoteStart: URL?    // what the page loads first: the pairing link, then just the base
+    @Published var viewID = UUID()      // changes to rebuild the page when switching between host and client
+    @Published var lastRemote: URL?     // remembered, so "Reconnect" works without scanning again
+    @Published var scanning = false
+    @Published var busy: String?
+    @Published var alert: String?
+
+    private var bgTask: UIBackgroundTaskIdentifier = .invalid
+    private let lastRemoteKey = "lastRemote"
+
+    init() {
+        server.start()
+        if let s = UserDefaults.standard.string(forKey: lastRemoteKey) { lastRemote = URL(string: s) }
+    }
+
+    var pageURL: URL { remoteStart ?? URL(string: "http://localhost:\(UFTIServer.port)/")! }
+
+    /// Connect to the device whose QR code was scanned. The code works once; it becomes a login cookie for this app.
+    func connect(pairing url: URL) {
+        var c = URLComponents()
+        c.scheme = "http"; c.host = url.host; c.port = url.port; c.path = "/"
+        guard let base = c.url else { return }
+        remoteBase = base
+        remoteStart = url
+        lastRemote = base
+        UserDefaults.standard.set(base.absoluteString, forKey: lastRemoteKey)
+        viewID = UUID()
+    }
+
+    /// Open the last device again. Its login cookie is still stored, so no new scan is needed (if it was removed there, scan again).
+    func reconnect() {
+        guard let base = lastRemote else { return }
+        remoteBase = base
+        remoteStart = base
+        viewID = UUID()
+    }
+
+    func disconnect() {
+        remoteBase = nil
+        remoteStart = nil
+        viewID = UUID()
+    }
+
+    /// The pairing code is used up after the first load; a rebuilt page must open the plain address.
+    func pairingConsumed() { remoteStart = remoteBase }
 
     func phaseChanged(_ phase: ScenePhase) {
         switch phase {
@@ -52,66 +87,71 @@ final class AppModel: ObservableObject {
     }
 }
 
-/// The same page the Windows app shows, loaded from the embedded server and signed in as "This iPhone".
-struct WebView: UIViewRepresentable {
-    let server: UFTIServer
+struct RootView: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var server: UFTIServer   // observed directly so the error screen appears and clears by itself
 
-    func makeCoordinator() -> Coordinator { Coordinator(server) }
-
-    func makeUIView(context: Context) -> WKWebView {
-        let wv = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
-        wv.navigationDelegate = context.coordinator
-        wv.isOpaque = false
-        wv.backgroundColor = .clear
-        context.coordinator.webView = wv
-        wv.configuration.websiteDataStore.httpCookieStore.setCookie(server.localCookie()) { context.coordinator.load() }
-        return wv
+    var body: some View {
+        VStack(spacing: 0) {
+            TopBar(model: model)
+            ZStack {
+                if let err = server.error, model.remoteBase == nil {
+                    VStack(spacing: 10) {
+                        Text("UFTI can't start its server").font(.headline)
+                        Text(err).font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
+                        Button("Try again") { server.start() }
+                    }.padding()
+                } else {
+                    PageView(model: model, start: model.pageURL, isClient: model.remoteBase != nil)
+                        .id(model.viewID)
+                }
+                if let message = model.busy {
+                    ZStack {
+                        Color.black.opacity(0.35)
+                        VStack(spacing: 10) { ProgressView(); Text(message).font(.footnote) }
+                            .padding(20).background(.regularMaterial).cornerRadius(12)
+                    }
+                }
+            }
+        }
+        .background(Color(.systemBackground).ignoresSafeArea())
+        .fullScreenCover(isPresented: $model.scanning) { ScannerScreen(model: model) }
+        .alert("UFTI", isPresented: Binding(get: { model.alert != nil }, set: { if !$0 { model.alert = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.alert ?? "")
+        }
     }
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+}
 
-    @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        let server: UFTIServer
-        weak var webView: WKWebView?
-        private var retries = 0
-        private let home = URL(string: "http://localhost:\(UFTIServer.port)/")!
+/// Shows which device the page belongs to, and the buttons to scan or disconnect.
+struct TopBar: View {
+    @ObservedObject var model: AppModel
 
-        init(_ server: UFTIServer) { self.server = server }
-
-        func load() { webView?.load(URLRequest(url: home)) }
-
-        // The listener may need a moment after launch; try again a few times.
-        func webView(_ w: WKWebView, didFailProvisionalNavigation n: WKNavigation!, withError e: Error) {
-            guard retries < 20 else { return }
-            retries += 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in self?.server.ensureRunning(); self?.load() }
-        }
-
-        func webView(_ w: WKWebView, decidePolicyFor action: WKNavigationAction,
-                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            guard let url = action.request.url else { return decisionHandler(.allow) }
-            // "Save" on a received file: hand the file to the iOS share sheet (Save to Files, Photos, AirDrop...).
-            if url.host == "localhost", url.path.hasPrefix("/api/file/") {
-                let id = String(url.path.dropFirst("/api/file/".count))
-                if let item = server.store.find(id), item.kind == "file" { share(server.store.fileURL(item), from: w) }
-                return decisionHandler(.cancel)
+    var body: some View {
+        HStack(spacing: 10) {
+            if let base = model.remoteBase {
+                Image(systemName: "link")
+                Text("Connected to \(base.host ?? "")").lineLimit(1)
+                Spacer()
+                Button("Disconnect") { model.disconnect() }
+            } else {
+                Image(systemName: "iphone")
+                Text("This iPhone").lineLimit(1)
+                Spacer()
+                if model.lastRemote != nil {
+                    Button("Reconnect") { model.reconnect() }
+                }
+                Button {
+                    model.scanning = true
+                } label: {
+                    Label("Scan QR", systemImage: "qrcode.viewfinder")
+                }
+                .buttonStyle(.borderedProminent)
             }
-            // Real web links open in Safari, not inside the app.
-            if let scheme = url.scheme, scheme.hasPrefix("http"), url.host != "localhost", action.navigationType == .linkActivated {
-                UIApplication.shared.open(url)
-                return decisionHandler(.cancel)
-            }
-            decisionHandler(.allow)
         }
-
-        private func share(_ file: URL, from view: UIView) {
-            let vc = UIActivityViewController(activityItems: [file], applicationActivities: nil)
-            vc.popoverPresentationController?.sourceView = view
-            vc.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
-            var top = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-                .flatMap { $0.windows }.first { $0.isKeyWindow }?.rootViewController
-            while let next = top?.presentedViewController { top = next }
-            top?.present(vc, animated: true)
-        }
+        .font(.footnote)
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(Color(.secondarySystemBackground))
     }
 }

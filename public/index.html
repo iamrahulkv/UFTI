@@ -389,7 +389,9 @@ $('clearYes').onclick = async () => {
 // On the device that runs UFTI (the PC window or the iPhone app) the app puts it on the system clipboard:
 // images as an image, other files as a file. Other browsers can copy images only, through the browser's clipboard.
 const isImage = n => /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(n);
-const canCopyFile = it => isPC || (isImage(it.name) && !!window.ClipboardItem && !!navigator.clipboard?.write);
+// The iPhone app, when it shows another device's page, offers a native Copy through this message handler.
+const NATIVE_COPY = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.uftiCopy;
+const canCopyFile = it => isPC || !!NATIVE_COPY || (isImage(it.name) && !!window.ClipboardItem && !!navigator.clipboard?.write);
 async function toPng(blob) {
   const bmp = await createImageBitmap(blob);
   const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
@@ -398,6 +400,7 @@ async function toPng(blob) {
 }
 async function copyFile(id) {
   const it = items.get(id); if (!it) return;
+  if (NATIVE_COPY && !isPC) return NATIVE_COPY.postMessage(id); // the app downloads it, sets the clipboard and shows the toast
   if (isPC) {
     try {
       const r = await api('/api/copy/' + id, { method: 'POST' });
