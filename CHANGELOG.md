@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- **Copy for received images in phone browsers.** Browsers block the clipboard on plain `http://` pages, which is what a QR link on your Wi-Fi is, so Copy was hidden there. Images now get a Copy button in phone browsers too, using the older copy method (the image is prepared as soon as it arrives). Other file types still need Save. The iPhone app's own Copy is more reliable
+- The iPhone app adds its own Copy button when it is connected to another device, so Copy works even with older Windows versions
 - **Scan QR inside the iPhone app.** The iPhone app has a **Scan QR** button. Scan the QR code of the Windows app (or another phone running UFTI) and send and receive in the app itself, with no browser. Save opens the iOS share sheet and Copy puts the file on the iPhone clipboard. The app remembers the last device (**Reconnect**), and **Disconnect** returns to this iPhone's own screen. The browser way still works as before
 
 ## 1.3.0

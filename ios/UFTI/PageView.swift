@@ -8,12 +8,43 @@ struct PageView: UIViewRepresentable {
     let start: URL
     let isClient: Bool
 
+    /// Adds a native Copy button beside each Save link. The page redraws its list often, so a MutationObserver
+    /// keeps adding it. Pages that already have their own Copy button (data-copyfile) are left alone.
+    static let copyButtonScript = #"""
+    (function () {
+      function add() {
+        document.querySelectorAll('a[href^="/api/file/"][download]').forEach(function (a) {
+          var li = a.parentElement;
+          if (!li || li.querySelector('[data-copyfile],[data-nativecopy]')) return;
+          var b = document.createElement('button');
+          b.className = 'ghost';
+          b.textContent = 'Copy';
+          b.title = 'Copy to the clipboard, then paste it anywhere';
+          b.setAttribute('data-nativecopy', a.getAttribute('href').split('/').pop());
+          a.insertAdjacentElement('afterend', b);
+        });
+      }
+      new MutationObserver(add).observe(document.documentElement, { childList: true, subtree: true });
+      document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-nativecopy]');
+        if (b) window.webkit.messageHandlers.uftiCopy.postMessage(b.getAttribute('data-nativecopy'));
+      });
+      add();
+    })();
+    """#
+
     func makeCoordinator() -> Coordinator { Coordinator(model: model, start: start, isClient: isClient) }
 
     func makeUIView(context: Context) -> WKWebView {
         let cfg = WKWebViewConfiguration()
         // Native Copy for client mode: the page posts a file id and the app downloads the file and sets the clipboard.
-        if isClient { cfg.userContentController.add(context.coordinator, name: "uftiCopy") }
+        if isClient {
+            cfg.userContentController.add(context.coordinator, name: "uftiCopy")
+            // Older UFTI versions on the other device (Windows 1.3.0 and earlier) have no Copy hook in their page,
+            // so the app adds a Copy button next to every Save button that lacks one.
+            cfg.userContentController.addUserScript(WKUserScript(source: PageView.copyButtonScript,
+                                                                 injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
         let wv = WKWebView(frame: .zero, configuration: cfg)
         wv.navigationDelegate = context.coordinator
         wv.isOpaque = false

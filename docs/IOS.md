@@ -48,7 +48,7 @@ The iPhone app can be a client as well as a host. Tap **Scan QR** at the top and
 
 - **Send:** tap the send area and pick photos or files, as in the browser.
 - **Save:** downloads the file inside the app, then opens the iOS share sheet (Save to Files, Photos, AirDrop).
-- **Copy:** puts the file on the iPhone clipboard (images as an image). Needs the other device to run a UFTI version that has the in-app Copy button; older Windows versions show Save only.
+- **Copy:** puts the file on the iPhone clipboard (images as an image, other files as a file). The app adds this button itself, so it works whichever UFTI version the other device runs.
 - **Reconnect and Disconnect:** the app remembers the last device. **Reconnect** opens it again without a new scan, unless it was removed on that device. **Disconnect** goes back to this iPhone's own screen, which keeps sharing in the meantime.
 - Only UFTI links on a private network address (like `192.168.x.x`) are accepted, so a QR code from anywhere else can't send the app to a website.
 

@@ -349,6 +349,7 @@ function render() {
     const mine = isMine(it);
     const tag = mine ? '<span class="tag out">↑ Sent</span>' : `<span class="tag in">↓ Received from ${esc(it.from)}</span>`;
     if (it.kind === 'file') {
+      if (!mine) prepareLegacy(it);
       li.innerHTML = `<div class="ic">${icon(it.name)}</div><div class="meta"><div class="name">${esc(it.name)}</div>
         <div class="sub">${tag} · ${fmt(it.size)} · ${ago(it.ts)}</div></div>
         ${mine ? '' : `<a href="/api/file/${it.id}" download="${esc(it.name)}"><button>Save</button></a>${canCopyFile(it) ? `<button class="ghost" data-copyfile="${it.id}" title="Copy to the clipboard, then paste it anywhere">Copy</button>` : ''}`}
@@ -391,9 +392,44 @@ $('clearYes').onclick = async () => {
 const isImage = n => /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(n);
 // The iPhone app, when it shows another device's page, offers a native Copy through this message handler.
 const NATIVE_COPY = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.uftiCopy;
-const canCopyFile = it => isPC || !!NATIVE_COPY || (isImage(it.name) && !!window.ClipboardItem && !!navigator.clipboard?.write);
+const canCopyFile = it => isPC || !!NATIVE_COPY || isImage(it.name);
+// Browsers block the async clipboard on plain http (a QR link on the LAN). There, images are copied the older way:
+// select an <img> inside an editable element and run the copy command. That command only works inside the tap itself,
+// so the image is fetched, converted and decoded ahead of time, as soon as it shows up.
+const legacyMode = () => !isPC && !NATIVE_COPY && !(window.ClipboardItem && navigator.clipboard?.write);
+const prepared = new Map(); // id -> decoded <img>, or null while it is being prepared
+function prepareLegacy(it) {
+  if (!legacyMode() || !isImage(it.name) || prepared.has(it.id) || it.size > 25 * 1048576) return;
+  prepared.set(it.id, null);
+  fetch('/api/file/' + it.id).then(r => r.blob()).then(toPng)
+    .then(b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(b); }))
+    .then(url => { const img = new Image(); img.src = url; return img.decode().then(() => img); })
+    .then(img => prepared.set(it.id, img))
+    .catch(() => prepared.delete(it.id));
+}
+function copyLegacy(id) {
+  const img = prepared.get(id);
+  if (!img) { prepareLegacy(items.get(id)); return toast('Getting the image ready. Tap Copy again in a moment.'); }
+  const box = document.createElement('div');
+  box.contentEditable = 'true';
+  box.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:.01;overflow:hidden;';
+  box.appendChild(img.cloneNode());
+  document.body.appendChild(box);
+  const sel = getSelection(), range = document.createRange();
+  range.selectNodeContents(box);
+  sel.removeAllRanges(); sel.addRange(range);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  sel.removeAllRanges(); box.remove();
+  toast(ok ? 'Image copied. Paste it anywhere.' : 'This browser blocked copying. Use Save.');
+}
 async function toPng(blob) {
-  const bmp = await createImageBitmap(blob);
+  let bmp;
+  if (window.createImageBitmap) bmp = await createImageBitmap(blob);
+  else { // older Safari
+    const u = URL.createObjectURL(blob);
+    try { bmp = new Image(); bmp.src = u; await bmp.decode(); } finally { URL.revokeObjectURL(u); }
+  }
   const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
   c.getContext('2d').drawImage(bmp, 0, 0);
   return new Promise((ok, no) => c.toBlob(b => b ? ok(b) : no(new Error('encode')), 'image/png'));
@@ -409,12 +445,16 @@ async function copyFile(id) {
     } catch { return toast('Could not copy. Use Save.'); }
   }
   if (!isImage(it.name)) return toast('This file type can\'t be copied here. Use Save.');
-  try {
-    // The clipboard write must start inside the tap, so hand it a promise for the image.
-    const png = fetch('/api/file/' + id).then(r => r.blob()).then(toPng);
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-    toast('Image copied. Paste it anywhere.');
-  } catch { toast('Could not copy this image. Use Save.'); }
+  if (!legacyMode()) {
+    try {
+      // The clipboard write must start inside the tap, so hand it a promise for the image.
+      const png = fetch('/api/file/' + id).then(r => r.blob()).then(toPng);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+      toast('Image copied. Paste it anywhere.');
+    } catch { toast('Could not copy this image. Use Save.'); }
+    return;
+  }
+  copyLegacy(id); // no await before this point, so it still runs inside the tap
 }
 
 $('list').addEventListener('click', async e => {
@@ -661,7 +701,7 @@ function connect() {
   es.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.type === 'add') { items.set(m.item.id, m.item); render(); if (!isMine(m.item)) toast('Received from ' + m.item.from); }
-    if (m.type === 'remove') { items.delete(m.id); render(); }
+    if (m.type === 'remove') { items.delete(m.id); prepared.delete(m.id); render(); }
   };
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && es && es.readyState === 2) connect(); });
