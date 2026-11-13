@@ -140,7 +140,7 @@ struct PageView: UIViewRepresentable {
                 if let file = try? await download(id), let kind = copyToPasteboard(file) {
                     msg = kind == "image" ? "Image copied. Paste it anywhere." : "File copied. Paste it into a chat or Files."
                 }
-                webView?.evaluateJavaScript("toast(\"\(msg)\")")
+                webView?.evaluateJavaScript("toast(\"\(msg)\")", completionHandler: nil)
             }
         }
 
