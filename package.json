@@ -1,6 +1,6 @@
 {
   "name": "ufti",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "UFTI (Unified File Transfer Interface): Scan and Send, cross-platform Wi-Fi file transfer via QR",
   "main": "main.js",
   "scripts": {

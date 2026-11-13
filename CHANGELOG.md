@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.2
 - The **Clear history** box no longer says "PC" on phones. It says "this PC" or "this iPhone" on the device that runs UFTI, and names that device (for example the PC's name) on any other device. The "not paired" message is reworded the same way
 
 ## 1.3.1
