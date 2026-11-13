@@ -102,6 +102,7 @@
   .hint { color:var(--mute); font-size:12px; margin:8px 0 0; }
   .hint.small { font-size:11.5px; }
   ol.hint { padding-left:18px; }
+  ol.hint li { display:list-item; padding:0; margin:0 0 4px; background:none; border:0; border-radius:0; }
   .hint a { color:var(--out); }
   .msg { font-size:12px; margin:6px 0 0; color:var(--mute); min-height:0; }
   .msg.err { color:var(--bad); }
@@ -297,6 +298,8 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('ufti_' + k, v); } catch {} },
 };
 const ua = navigator.userAgent;
+// Set by the iPhone app's server. The Windows app serves this page without it.
+const HOST_IOS = window.UFTI_HOST === 'ios';
 const DEVICE = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows PC' : /Mac/.test(ua) ? 'Mac' : 'Device';
 const $ = id => document.getElementById(id);
 const items = new Map();
@@ -444,6 +447,7 @@ const isPC = ['localhost', '127.0.0.1'].includes(location.hostname);
 let net = { addresses: [], preferred: '', firewall: false }, hs = null;
 let mode = store.get('mode') || 'wifi', off = store.get('off') || 'pc', hsBusy = false;
 if (off === 'iphone') off = 'phone'; // pre-Android versions saved this value
+if (HOST_IOS) off = 'phone'; // an iPhone can't run a PC hotspot or need a firewall rule
 const qrSrc = text => '/api/qr?u=' + encodeURIComponent(text);
 const setImg = (img, src) => { if (img.dataset.src !== src) { img.dataset.src = src; img.src = src; } };
 const kindLabel = a => a.via || 'Wi-Fi / LAN';
@@ -508,8 +512,25 @@ async function refreshNet() {
   renderConnect();
 }
 
+// iPhone wording: this phone is the host, so the PC-only parts go away and the steps describe Personal Hotspot.
+function applyIosHost() {
+  $('offTabs').hidden = true;
+  $('fwBtn').parentElement.hidden = true;
+  document.querySelector('#offIphone ol').innerHTML =
+    '<li>On this iPhone, open <b>Settings, Personal Hotspot</b> and turn on <b>Allow Others to Join</b>.</li>' +
+    '<li>On the other phone, join this iPhone\'s Wi-Fi network (Android: Settings, Network, Wi-Fi).</li>' +
+    '<li>UFTI detects the hotspot and shows its QR code here. Scan it with the other phone\'s camera.</li>';
+  $('ipMsg').textContent = 'Waiting for Personal Hotspot…';
+  document.querySelectorAll('#sec p.hint.small')[1].textContent =
+    'For an Android share app. A key can only send files and text, and can be revoked any time.';
+  document.querySelector('#clearFiles + span').textContent = 'Also delete the saved files from this iPhone';
+  document.querySelector('#notPaired .hint').textContent =
+    'This device isn\'t paired with the iPhone, or it was removed. Scan the QR code in the UFTI app on the iPhone with this phone\'s camera to pair it.';
+}
+
 function initConnect() {
   if (initConnect.done) return; initConnect.done = true;
+  if (HOST_IOS) applyIosHost();
   $('pair').classList.add('show');
   $('sec').classList.add('show');
   initDevices();
@@ -539,7 +560,7 @@ function renderDevices(devices) {
   ul.innerHTML = '';
   for (const d of devices) {
     const li = document.createElement('li');
-    li.innerHTML = '<div class="meta"><div class="name">' + (d.kind === 'key' ? 'Key: ' : '') + esc(d.name) + (d.current ? ' (this window)' : '') + '</div>' +
+    li.innerHTML = '<div class="meta"><div class="name">' + (d.kind === 'key' ? 'Key: ' : '') + esc(d.name) + (d.current && !HOST_IOS ? ' (this window)' : '') + '</div>' +
       '<div class="sub">paired ' + ago(d.created) + ' \u00b7 last seen ' + ago(d.lastSeen) + '</div></div>' +
       (d.current ? '' : '<button class="ghost" data-revoke="' + d.id + '">Revoke</button>');
     ul.appendChild(li);

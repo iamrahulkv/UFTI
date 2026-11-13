@@ -241,7 +241,12 @@ final class UFTIServer: ObservableObject {
         let file = publicDir.appendingPathComponent(rel).standardizedFileURL
         var isDir: ObjCBool = false
         guard file.path.hasPrefix(publicDir.path + "/"), FileManager.default.fileExists(atPath: file.path, isDirectory: &isDir),
-              !isDir.boolValue, let data = try? Data(contentsOf: file) else { return await c.text(404, "Not found") }
+              !isDir.boolValue, var data = try? Data(contentsOf: file) else { return await c.text(404, "Not found") }
+        // Tell the shared page it is hosted by an iPhone, so it hides the PC-only options and wording.
+        if rel == "index.html", var html = String(data: data, encoding: .utf8), let r = html.range(of: "<head>") {
+            html.replaceSubrange(r, with: "<head>\n<script>window.UFTI_HOST = 'ios';</script>")
+            data = Data(html.utf8)
+        }
         await c.respond(200, ["Content-Type": UFTIServer.mime[file.pathExtension.lowercased()] ?? "application/octet-stream"], data)
     }
 
