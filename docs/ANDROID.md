@@ -2,6 +2,8 @@
 
 UFTI works with Android the same way it works with an iPhone: the PC runs the app, the phone opens a web page in Chrome (or any browser). Nothing to install on the phone.
 
+> **Prefer an app?** There is also a native [UFTI app for Android](ANDROID-APP.md). It can show its own QR code (so a PC, an iPhone or another phone can send to it), scan the QR code of a PC or iPhone, and keep running in the background.
+
 > **Status:** verified with emulated Android Chrome and with the same upload requests Android share tools send. It has not yet been run on a physical Android phone, so tell us what you find ([open an issue](https://github.com/iamrahulkv/UFTI/issues/new/choose)).
 
 ## Quick start

@@ -23,7 +23,8 @@ Send files, photos, videos and text between your Windows 11 PC and your **iPhone
 - **Both directions.** PC to iPhone and iPhone to PC.
 - **History on both sides.** See everything you sent and received in All / Sent / Received tabs, with times. Clear it any time.
 - **Any size.** Files stream straight to disk, with progress bars. A multi-GB video works.
-- **Scan inside the iPhone app.** The iPhone app can scan another UFTI's QR code and transfer inside the app, with no browser. The browser way always works too.
+- **Scan inside the iPhone or Android app.** Both phone apps can scan another UFTI's QR code and transfer inside the app, with no browser. The browser way always works too.
+- **Phone to phone, PC to phone.** The iPhone and Android apps speak the same protocol as the Windows app, so any one can show the QR code and any other can scan it, in both directions. See the [Android app guide](docs/ANDROID-APP.md).
 - **Copy without saving.** Every received file has a **Copy** button next to **Save**. Copy a photo and paste it straight into a chat, Word or Paint, with nothing saved to disk. Other files paste as files. Works the same on the PC and in the iPhone app. In a phone's browser, images can be copied too, but browsers restrict this on a local Wi-Fi link, so the iPhone app is the most reliable way to copy.
 - **Text and links too.** Share a URL or a note, with one-tap copy.
 - **Share button support.** Add a "Send to PC" entry to the share sheet: with a free iOS Shortcut on iPhone ([guide](docs/IPHONE-SHORTCUT.md)), or a share app such as HTTP Shortcuts on Android ([guide](docs/ANDROID.md)).
@@ -62,6 +63,9 @@ npm run app      # desktop app
 ### Option 3: UFTI app on your iPhone
 Run UFTI on an iPhone, and let an Android phone (or another iPhone) scan its QR code. The iPhone app is not on the App Store, so you install it yourself in about 15 minutes with a free Apple ID: download `UFTI-iOS-unsigned-x.y.z.ipa` from the [releases page](https://github.com/iamrahulkv/UFTI/releases) (the release named **ios-v…**), then follow the [step-by-step iPhone install guide](docs/INSTALL-IPHONE.md).
 
+### Option 4: UFTI app on your Android phone
+Run UFTI on an Android phone, and let a PC, an iPhone or another Android phone scan its QR code (or scan theirs from inside the app). Download `UFTI-Android-x.y.z.apk` from the [releases page](https://github.com/iamrahulkv/UFTI/releases) (the release named **android-v…**) and open it on the phone. See the [Android app guide](docs/ANDROID-APP.md).
+
 ## Use
 1. Open UFTI on the PC. It shows a QR code.
 2. Make sure the phone is on the **same Wi-Fi**, then scan the QR code with the Camera app (or Google Lens on Android) and open the link in the phone's browser. The QR code works once, and a new one appears after each scan.
@@ -77,7 +81,8 @@ The phone only needs the QR scan once. The browser remembers the pairing until y
 
 ## Docs
 - [How it works and API reference](docs/HOW-IT-WORKS.md)
-- [Using UFTI with Android](docs/ANDROID.md)
+- [Using UFTI with Android (browser)](docs/ANDROID.md)
+- [UFTI for Android: the native app](docs/ANDROID-APP.md)
 - [Using UFTI without Wi-Fi](docs/NO-WIFI.md)
 - [iPhone Share button shortcut](docs/IPHONE-SHORTCUT.md)
 - [Install UFTI on your iPhone](docs/INSTALL-IPHONE.md)

@@ -9,3 +9,11 @@ ios/Payload/
 ios/*.ipa
 .DS_Store
 ios/build-out/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk

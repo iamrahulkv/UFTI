@@ -298,8 +298,11 @@ const store = {
   set: (k, v) => { try { localStorage.setItem('ufti_' + k, v); } catch {} },
 };
 const ua = navigator.userAgent;
-// Set by the iPhone app's server. The Windows app serves this page without it.
+// Set by the iPhone and Android apps' servers ('ios' or 'android'). The Windows app serves this page without it.
 const HOST_IOS = window.UFTI_HOST === 'ios';
+const HOST_ANDROID = window.UFTI_HOST === 'android';
+const HOST_PHONE = HOST_IOS || HOST_ANDROID; // this phone runs UFTI, so the PC-only parts go away
+const HOST_NOUN = HOST_IOS ? 'iPhone' : 'phone';
 let HOSTNAME = ''; // name of the device that stores the files, from /api/info
 const DEVICE = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows PC' : /Mac/.test(ua) ? 'Mac' : 'Device';
 const $ = id => document.getElementById(id);
@@ -376,7 +379,7 @@ $('clearBtn').onclick = () => {
   $('clearMsg').textContent = `This removes ${what} (${arr.length} item${arr.length === 1 ? '' : 's'}) from the history on every connected device.`;
   $('clearFiles').checked = false;
   // The saved files live on the device that runs UFTI: say "this PC" or "this iPhone" there, and name that device elsewhere.
-  $('clearFilesText').textContent = 'Also delete the saved files from ' + (isPC ? (HOST_IOS ? 'this iPhone' : 'this PC') : (HOSTNAME || 'the other device'));
+  $('clearFilesText').textContent = 'Also delete the saved files from ' + (isPC ? (HOST_PHONE ? 'this ' + HOST_NOUN : 'this PC') : (HOSTNAME || 'the other device'));
   $('clearFiles').closest('label').style.display = files ? 'flex' : 'none';
   $('clearDlg').showModal();
 };
@@ -393,8 +396,10 @@ $('clearYes').onclick = async () => {
 // On the device that runs UFTI (the PC window or the iPhone app) the app puts it on the system clipboard:
 // images as an image, other files as a file. Other browsers can copy images only, through the browser's clipboard.
 const isImage = n => /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(n);
-// The iPhone app, when it shows another device's page, offers a native Copy through this message handler.
-const NATIVE_COPY = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.uftiCopy;
+// The iPhone app (message handler) and the Android app (JavaScript bridge), when they show another device's page,
+// offer a native Copy.
+const NATIVE_COPY = (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.uftiCopy)
+  || (window.uftiAndroid && { postMessage: id => window.uftiAndroid.copy(id) });
 const canCopyFile = it => isPC || !!NATIVE_COPY || isImage(it.name);
 // Browsers block the async clipboard on plain http (a QR link on the LAN). There, images are copied the older way:
 // select an <img> inside an editable element and run the copy command. That command only works inside the tap itself,
@@ -523,7 +528,7 @@ const isPC = ['localhost', '127.0.0.1'].includes(location.hostname);
 let net = { addresses: [], preferred: '', firewall: false }, hs = null;
 let mode = store.get('mode') || 'wifi', off = store.get('off') || 'pc', hsBusy = false;
 if (off === 'iphone') off = 'phone'; // pre-Android versions saved this value
-if (HOST_IOS) off = 'phone'; // an iPhone can't run a PC hotspot or need a firewall rule
+if (HOST_PHONE) off = 'phone'; // a phone can't run a PC hotspot or need a firewall rule
 const qrSrc = text => '/api/qr?u=' + encodeURIComponent(text);
 const setImg = (img, src) => { if (img.dataset.src !== src) { img.dataset.src = src; img.src = src; } };
 const kindLabel = a => a.via || 'Wi-Fi / LAN';
@@ -588,22 +593,26 @@ async function refreshNet() {
   renderConnect();
 }
 
-// iPhone wording: this phone is the host, so the PC-only parts go away and the steps describe Personal Hotspot.
-function applyIosHost() {
+// Phone wording: this phone is the host, so the PC-only parts go away and the steps describe its own hotspot.
+function applyPhoneHost() {
   $('offTabs').hidden = true;
   $('fwBtn').parentElement.hidden = true;
-  document.querySelector('#offIphone ol').innerHTML =
-    '<li>On this iPhone, open <b>Settings, Personal Hotspot</b> and turn on <b>Allow Others to Join</b>.</li>' +
-    '<li>On the other phone, join this iPhone\'s Wi-Fi network (Android: Settings, Network, Wi-Fi).</li>' +
-    '<li>UFTI detects the hotspot and shows its QR code here. Scan it with the other phone\'s camera.</li>';
-  $('ipMsg').textContent = 'Waiting for Personal Hotspot…';
-  document.querySelectorAll('#sec p.hint.small')[1].textContent =
-    'For an Android share app. A key can only send files and text, and can be revoked any time.';
+  document.querySelector('#offIphone ol').innerHTML = HOST_IOS
+    ? '<li>On this iPhone, open <b>Settings, Personal Hotspot</b> and turn on <b>Allow Others to Join</b>.</li>' +
+      '<li>On the other phone, join this iPhone\'s Wi-Fi network (Android: Settings, Network, Wi-Fi).</li>' +
+      '<li>UFTI detects the hotspot and shows its QR code here. Scan it with the other phone\'s camera.</li>'
+    : '<li>On this phone, open <b>Settings, Network and internet, Hotspot and tethering</b> and turn on <b>Wi-Fi hotspot</b>.</li>' +
+      '<li>On the other phone, join this phone\'s Wi-Fi network (iPhone: Settings, Wi-Fi).</li>' +
+      '<li>UFTI detects the hotspot and shows its QR code here. Scan it with the other phone\'s camera.</li>';
+  $('ipMsg').textContent = HOST_IOS ? 'Waiting for Personal Hotspot…' : 'Waiting for the Wi-Fi hotspot…';
+  document.querySelectorAll('#sec p.hint.small')[1].textContent = HOST_IOS
+    ? 'For an Android share app. A key can only send files and text, and can be revoked any time.'
+    : 'For a share app or script on another device. A key can only send files and text, and can be revoked any time.';
 }
 
 function initConnect() {
   if (initConnect.done) return; initConnect.done = true;
-  if (HOST_IOS) applyIosHost();
+  if (HOST_PHONE) applyPhoneHost();
   $('pair').classList.add('show');
   $('sec').classList.add('show');
   initDevices();
@@ -633,7 +642,7 @@ function renderDevices(devices) {
   ul.innerHTML = '';
   for (const d of devices) {
     const li = document.createElement('li');
-    li.innerHTML = '<div class="meta"><div class="name">' + (d.kind === 'key' ? 'Key: ' : '') + esc(d.name) + (d.current && !HOST_IOS ? ' (this window)' : '') + '</div>' +
+    li.innerHTML = '<div class="meta"><div class="name">' + (d.kind === 'key' ? 'Key: ' : '') + esc(d.name) + (d.current && !HOST_PHONE ?' (this window)' : '') + '</div>' +
       '<div class="sub">paired ' + ago(d.created) + ' \u00b7 last seen ' + ago(d.lastSeen) + '</div></div>' +
       (d.current ? '' : '<button class="ghost" data-revoke="' + d.id + '">Revoke</button>');
     ul.appendChild(li);
