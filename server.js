@@ -208,7 +208,7 @@ async function handler(req, res) {
     if (req.method === 'GET' && !url.pathname.startsWith('/api/')) {
       const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
       const file = path.normalize(path.join(PUBLIC, rel));
-      if (!file.startsWith(PUBLIC) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      if (!file.startsWith(PUBLIC + path.sep) ||!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
         res.writeHead(404); return res.end('Not found');
       }
       res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
