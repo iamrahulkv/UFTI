@@ -18,7 +18,7 @@ Pick **one** option below. Option A (Sideloadly) is the quickest to try. Option 
 
 ## Option A: Sideloadly (one install, quick)
 
-1. Download **Sideloadly** for Windows or macOS from [sideloadly.io](https://sideloadly.io). On Windows, it also needs iTunes from Apple's website (see step 1 of Option B).
+1. Download **Sideloadly** for Windows or macOS from [sideloadly.io](https://sideloadly.io). On Windows, it also needs the **Apple Devices** app from the Microsoft Store (see step 1 of Option B). iTunes has been discontinued on Windows.
 2. Connect the iPhone with the cable and tap **Trust This Computer**.
 3. Open Sideloadly. Your iPhone should appear in the device list.
 4. Drag the UFTI `.ipa` onto the Sideloadly window, or click the IPA icon and pick it.
@@ -37,10 +37,10 @@ After 7 days the app stops opening. Repeat steps 3 to 5 with the same file to re
 AltStore puts a small helper app on your iPhone. A program on your computer (AltServer) signs apps for it and renews them over Wi-Fi, so you don't have to reinstall every week.
 
 ### On Windows
-1. Install **iTunes** and **iCloud** from Apple's website, not from the Microsoft Store. AltServer does not work with the Microsoft Store versions. If you already have the Store versions, uninstall them first.
+1. Install the **Apple Devices** app from the Microsoft Store (iTunes has been discontinued on Windows). Open it once so Windows recognises your iPhone.
 2. Download **AltServer for Windows** from [altstore.io](https://altstore.io) and install it. Windows may ask for firewall access; allow it.
 3. Connect the iPhone with the cable and tap **Trust This Computer** on the iPhone.
-4. In iTunes, click the small iPhone icon, open **Summary**, and tick **Sync with this iPhone over Wi-Fi**. Click **Apply**.
+4. In Apple Devices, select your iPhone and turn on the option to show it when on Wi-Fi (Wi-Fi sync), then apply. This lets AltServer reach the iPhone wirelessly to refresh the app.
 5. Open AltServer. It lives in the system tray (the arrow at the right of the taskbar). Click its icon, then **Install AltStore**, and choose your iPhone.
 6. Enter your Apple ID email and password when asked. They are sent to Apple to sign the app, not to anyone else. If you would rather not use your main Apple ID, create a free second one at appleid.apple.com and use that.
 
@@ -89,7 +89,7 @@ No shared Wi-Fi? Turn on **Settings, Personal Hotspot, Allow Others to Join** on
 | "Untrusted Developer" when opening the app | **Settings, General, VPN & Device Management**, tap your Apple ID, then **Trust**. |
 | No **Developer Mode** switch in Settings | It shows up only after a sideloaded app is on the iPhone. Install first, then look again. Restart the iPhone if it still is not there. |
 | The app closes at once, or says it can't be verified | The 7 days ran out. Install again (Option B refreshes itself; Option A, repeat the install). |
-| The computer does not see the iPhone | Use an original or good cable, unlock the iPhone, tap **Trust This Computer**, and make sure iTunes is from Apple's site, not the Microsoft Store. |
+| The computer does not see the iPhone | Use an original or good cable, unlock the iPhone, tap **Trust This Computer**, and make sure the **Apple Devices** app from the Microsoft Store is installed and has been opened once. |
 | AltStore or Sideloadly refuses with an Apple ID error | Try an app-specific password, or a second free Apple ID. Apple limits a free account to 10 new app IDs a week, so wait a few days if you installed many apps. |
 | The other phone can't open the link | Both phones must be on the same Wi-Fi, UFTI must be open on screen, and **Local Network** must be on for UFTI. Some public or guest Wi-Fi blocks device-to-device traffic. Try Personal Hotspot instead. |
 | The QR code says "Pairing link expired" | Each code works once. A new one appears on the iPhone within seconds. Scan again. |
