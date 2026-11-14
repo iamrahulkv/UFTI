@@ -109,6 +109,8 @@ section{padding-block:72px}
 .split li{padding-left:24px;position:relative}
 .split li::before{content:"";position:absolute;left:0;top:.62em;width:10px;height:10px;border-radius:3px;background:var(--saffron)}
 .band{background:var(--soft)}
+.video{position:relative;aspect-ratio:16/9;max-width:900px;margin:24px 0 0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 
 /* features grid */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
@@ -159,6 +161,7 @@ footer a{color:var(--fg)}
       <a class="brand" href="#"><img src="logo.svg" alt="">UFTI</a>
       <div class="links">
         <a href="#how">How it works</a>
+        <a href="#video">Video</a>
         <a href="#apps">Apps</a>
         <a href="#no-wifi">No Wi-Fi</a>
         <a href="#safe">Security</a>
@@ -232,7 +235,18 @@ footer a{color:var(--fg)}
   </div>
 </section>
 
-<section id="apps">
+<section id="video">
+  <div class="w">
+    <div class="kick">Video guide</div>
+    <h2>Watch the step-by-step tutorial</h2>
+    <p>Install UFTI on Windows, put it on an iPhone, connect the devices and send files between iPhone and Android, with a short review at the end. <a href="https://www.youtube.com/watch?v=qry-GdVksN8">Watch on YouTube</a>.</p>
+    <div class="video">
+      <iframe src="https://www.youtube-nocookie.com/embed/qry-GdVksN8" title="UFTI step-by-step guide and review" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    </div>
+  </div>
+</section>
+
+<section id="apps" class="band">
   <div class="w">
     <div class="kick">Apps</div>
     <h2>One protocol, three apps, every pairing</h2>

@@ -14,6 +14,12 @@
 
 Send files, photos, videos and text between your Windows 11 PC and your **iPhone or Android phone** over your own Wi-Fi, or with **no Wi-Fi at all** using a hotspot. No cloud, no account, and nothing to install on the phone. Open UFTI, scan the QR code, and send.
 
+## Video guide
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=qry-GdVksN8"><img src="https://img.youtube.com/vi/qry-GdVksN8/hqdefault.jpg" alt="Watch the UFTI step-by-step video guide on YouTube" width="480"></a><br>
+  <a href="https://www.youtube.com/watch?v=qry-GdVksN8">Watch the step-by-step guide</a>: install on Windows, sideload on iPhone, connect, and transfer between iPhone and Android.
+</p>
+
 ## Why UFTI
 - **Private.** Data goes straight from device to device on your local network. No server in the cloud, no sign-up, no tracking.
 - **One-time QR pairing.** Each phone you pair gets its own session, listed in the PC window, and you can remove it at any time. See [SECURITY.md](SECURITY.md).
